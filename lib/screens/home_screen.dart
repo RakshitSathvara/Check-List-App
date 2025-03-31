@@ -1,11 +1,4 @@
-// screens/home_screen.dart
-import 'package:check_list_app/services/auth_service.dart';
-import 'package:check_list_app/theme/app_colors.dart';
 import 'package:flutter/material.dart';
-import '../widgets/task_tab_view.dart';
-import '../models/dummy_data.dart';
-import '../models/user.dart';
-import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -18,26 +11,12 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentIndex = 0; // 0 for Due Tasks, 1 for Completed Tasks
-  int _tabIndex = 0; // 0 for Operational, 1 for Maintenance
-  final String _currentDateTime =
-      DateFormat('dd MMMM yyyy HH:mm').format(DateTime.now());
+  final String _currentDateTime = '3rd March 2025 05:40';
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      setState(() {
-        _tabIndex = _tabController.index;
-      });
-    });
-
-    // Check if user is logged in
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (AuthService.currentUser == null) {
-        Navigator.of(context).pushReplacementNamed('/login');
-      }
-    });
   }
 
   @override
@@ -46,60 +25,20 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
-  Future<void> _logout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('CANCEL'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('LOGOUT'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      AuthService.logout();
-      Navigator.of(context).pushReplacementNamed('/login');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final user = AuthService.currentUser;
-    if (user == null) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    String departmentTitle = user.department;
-    if (user.role == UserRole.plantHead) {
-      departmentTitle = "All Departments";
-    }
-
     return Scaffold(
-      drawer: _buildDrawer(user),
       body: SafeArea(
         child: Column(
           children: [
             // App Header
-            _buildAppBar(departmentTitle),
+            _buildAppBar(),
 
             // Date Header
             Container(
               padding: const EdgeInsets.symmetric(vertical: 15),
               width: double.infinity,
-              color: AppColors.tabPurple,
+              color: const Color(0xFFE1BEE7),
               child: Center(
                 child: Text(
                   _currentDateTime,
@@ -113,42 +52,58 @@ class _HomeScreenState extends State<HomeScreen>
             // Tab Bar (Operational / Maintenance)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              height: 40,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(color: AppColors.borderLight),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade300),
               ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(25),
-                  color: AppColors.tabPurple,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: const BoxDecoration(
+                    color: Color(0xFFE1BEE7),
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  labelColor: Colors.black,
+                  unselectedLabelColor: Colors.black,
+                  overlayColor: MaterialStateProperty.all(Colors.transparent),
+                  labelPadding: EdgeInsets.zero,
+                  tabs: [
+                    Tab(
+                      height: 40,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_tabController.index == 0)
+                            const Padding(
+                              padding: EdgeInsets.only(right: 4.0),
+                              child: Icon(Icons.check, size: 16),
+                            ),
+                          const Text('Operational'),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      height: 40,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_tabController.index == 1)
+                            const Padding(
+                              padding: EdgeInsets.only(right: 4.0),
+                              child: Icon(Icons.check, size: 16),
+                            ),
+                          const Text('Maintenance'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onTap: (index) {
+                    setState(() {});
+                  },
                 ),
-                labelColor: Colors.black,
-                unselectedLabelColor: Colors.black,
-                tabs: [
-                  Tab(
-                    height: 40, // Increase height to match design
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (_tabIndex == 0) const Icon(Icons.check, size: 16),
-                        const SizedBox(width: 4),
-                        const Text('Operational'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    height: 40, // Increase height to match design
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (_tabIndex == 1) const Icon(Icons.check, size: 16),
-                        const SizedBox(width: 4),
-                        const Text('Maintenance'),
-                      ],
-                    ),
-                  ),
-                ],
               ),
             ),
 
@@ -159,13 +114,13 @@ class _HomeScreenState extends State<HomeScreen>
                 children: [
                   // Operational Tab
                   _currentIndex == 0
-                      ? TaskTabView(tasks: getDummyOperationalTasks())
-                      : TaskTabView(tasks: getCompletedOperationalTasks()),
+                      ? _buildOperationalDueTasksView()
+                      : _buildOperationalCompletedTasksView(),
 
                   // Maintenance Tab
                   _currentIndex == 0
-                      ? TaskTabView(tasks: getDummyMaintenanceTasks())
-                      : TaskTabView(tasks: getCompletedMaintenanceTasks()),
+                      ? _buildMaintenanceDueTasksView()
+                      : _buildMaintenanceCompletedTasksView(),
                 ],
               ),
             ),
@@ -210,108 +165,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildDrawer(User user) {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(
-              color: Colors.red,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white,
-                  child: Icon(
-                    Icons.person,
-                    size: 30,
-                    color: Colors.red,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  user.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  AuthService.getRoleName(user.role),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.factory),
-            title: const Text('Processes'),
-            onTap: () {
-              Navigator.pop(context);
-            },
-          ),
-          // HOD and Plant Head specific menu items
-          if (user.role == UserRole.hod || user.role == UserRole.plantHead)
-            ListTile(
-              leading: const Icon(Icons.notifications),
-              title: const Text('Alerts'),
-              onTap: () {
-                Navigator.pop(context);
-                // Show a simple message for demo
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Alerts feature is available for HODs and Plant Heads'),
-                  ),
-                );
-              },
-            ),
-          // Plant Head specific menu items
-          if (user.role == UserRole.plantHead)
-            ListTile(
-              leading: const Icon(Icons.analytics),
-              title: const Text('Analytics'),
-              onTap: () {
-                Navigator.pop(context);
-                // Show a simple message for demo
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text('Analytics feature is available for Plant Heads'),
-                  ),
-                );
-              },
-            ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('Settings'),
-            onTap: () {
-              Navigator.pop(context);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
-            onTap: () {
-              Navigator.pop(context);
-              _logout();
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppBar(String departmentTitle) {
+  Widget _buildAppBar() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -329,37 +183,25 @@ class _HomeScreenState extends State<HomeScreen>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Menu Icon
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
-            ),
-          ),
+          const Icon(Icons.menu),
 
           // Page Title
-          Text(
-            '$departmentTitle - Shift B',
-            style: const TextStyle(
+          const Text(
+            'Rolling - Shift B',
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
 
           // Profile Icon
-          GestureDetector(
-            onTap: _logout,
-            child: const CircleAvatar(
-              backgroundColor: Colors.grey,
-              radius: 14,
-              child: Icon(
-                Icons.person,
-                size: 16,
-                color: Colors.white,
-              ),
+          const CircleAvatar(
+            backgroundColor: Colors.grey,
+            radius: 14,
+            child: Icon(
+              Icons.person,
+              size: 16,
+              color: Colors.white,
             ),
           ),
         ],
@@ -375,24 +217,274 @@ class _HomeScreenState extends State<HomeScreen>
   return GestureDetector(
     onTap: onTap,
     child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            width: 3,
-            color: isSelected ? AppColors.selectedPurple : Colors.transparent,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: isSelected ? const Color(0xFF673AB7) : Colors.grey[600],
+              fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+            ),
           ),
-        ),
-      ),
-      child: Text(
-        title,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: isSelected ? AppColors.selectedPurple : Colors.grey,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        ),
+          if (isSelected)
+            Container(
+              margin: const EdgeInsets.only(top: 3),
+              width: _getTextWidth(title, TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              )),
+              height: 3,
+              color: const Color(0xFF673AB7),
+            ),
+        ],
       ),
     ),
   );
+}
+
+  // Operational Due Tasks
+  Widget _buildOperationalDueTasksView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // HMI Category
+          _buildCategoryHeader("HMI"),
+          _buildTaskItem("Waterflow", "5 hours left", false),
+          _buildTaskItem("Physical condition", "2 hours left", false),
+
+          // BLOWER Category
+          _buildCategoryHeader("BLOWER"),
+          _buildTaskItem("Motor Vibration", "1 hour left", false),
+          _buildTaskItem("Impeller condition", "1 day left", false),
+          _buildTaskItem("Top suction mesh condition", "2 hours left", false),
+
+          // PNEUMATIC VALVE Category
+          _buildCategoryHeader("PNEUMATIC VALVE"),
+          _buildTaskItem("Air leakage", "6 hours left", false),
+          _buildTaskItem("Bellow condition", "30 mins left", false),
+        ],
+      ),
+    );
+  }
+
+  // Operational Completed Tasks
+  Widget _buildOperationalCompletedTasksView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0, bottom: 8.0),
+            child: Text(
+              "COMPLETED",
+              style: TextStyle(
+                color: Color(0xFFBDBDBD),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          _buildTaskItem("Bottom suction mesh condition", "", true),
+          _buildTaskItem("Belt condition", "", true),
+          _buildTaskItem("Motor temperature", "", true),
+          _buildTaskItem("Abnormal noise", "", true),
+        ],
+      ),
+    );
+  }
+
+  // Maintenance Due Tasks
+  Widget _buildMaintenanceDueTasksView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Today's Maintenance
+          _buildMaintenanceHeader("Today's Preventive/Planned Maintenance"),
+          _buildTaskItem("Cold Glass (L/R)", "3 hours Left", false),
+          _buildTaskItem("Burner Cleaning", "1 hour Left", false),
+          _buildTaskItem("Top Roller Cleaning By Brush", "4 hours Left", false),
+          _buildTaskItem("Top Roller Washing", "30 mins left", false),
+
+          // Next Day's Maintenance
+          _buildMaintenanceHeader("Next Day's Preventive/Planned Maintenance"),
+          _buildTaskItem("Bottom Roller Washing", "1 day left", false),
+          _buildTaskItem("Hanging Bricks Cleaning", "1 day left", false),
+        ],
+      ),
+    );
+  }
+
+  // Maintenance Completed Tasks
+  Widget _buildMaintenanceCompletedTasksView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0, bottom: 8.0),
+            child: Text(
+              "COMPLETED",
+              style: TextStyle(
+                color: Color(0xFFBDBDBD),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          _buildTaskItem("Zernul Bricks", "", true),
+          _buildTaskItem("Washing Pump in Running Condition", "", true),
+          _buildTaskItem("M/c Oil Pump Working", "", true),
+          _buildTaskItem("Water Inlet Temp.", "", true),
+          _buildTaskItem("Water Outlet Temp. Top and Bottom Roller", "", true),
+          _buildTaskItem("Water Outlet Temp. Carraige Roller", "", true),
+          _buildTaskItem("Any Abnormal Sound in Rolling M/c", "", true),
+        ],
+      ),
+    );
+  }
+
+  // Category Header (HMI, BLOWER, etc.)
+  Widget _buildCategoryHeader(String title) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      margin: const EdgeInsets.only(top: 16, bottom: 8),
+      color: const Color(0xFFF5F5F5),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 12,
+          color: Color(0xFF9E9E9E),
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  // Maintenance Category Header with arrow
+  Widget _buildMaintenanceHeader(String title) {
+    return Container(
+      margin: const EdgeInsets.only(top: 16, bottom: 8),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.list,
+            size: 20,
+            color: Colors.grey,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const Icon(
+            Icons.arrow_forward_ios,
+            size: 16,
+            color: Colors.grey,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Task Item
+  Widget _buildTaskItem(String name, String timeRemaining, bool isCompleted) {
+    final bool isTimeWarning =
+        timeRemaining.contains('hour') || timeRemaining.contains('mins');
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            // Checkbox or Completed indicator
+            if (isCompleted)
+              Container(
+                margin: const EdgeInsets.only(right: 12),
+                height: 20,
+                width: 20,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Icon(
+                  Icons.check,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              )
+            else
+              Container(
+                margin: const EdgeInsets.only(right: 12),
+                height: 20,
+                width: 20,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[400]!),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+
+            // Task name and time remaining
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (timeRemaining.isNotEmpty)
+                    Text(
+                      timeRemaining,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isTimeWarning
+                            ? const Color(0xFFE53935)
+                            : Colors.grey[600],
+                        fontWeight:
+                            isTimeWarning ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  double _getTextWidth(String text, TextStyle style) {
+  final TextPainter textPainter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    maxLines: 1,
+    textDirection: TextDirection.ltr,
+  )..layout(minWidth: 0, maxWidth: double.infinity);
+  
+  return textPainter.width;
 }
 }
