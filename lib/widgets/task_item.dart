@@ -1,4 +1,5 @@
 import 'package:check_list_app/services/auth_service.dart';
+import 'package:check_list_app/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../models/user.dart';
@@ -26,7 +27,7 @@ class _TaskItemState extends State<TaskItem> {
 
   void _showTaskDetails() {
     final currentUser = AuthService.currentUser;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -40,12 +41,13 @@ class _TaskItemState extends State<TaskItem> {
             if (widget.task.timeRemaining.isNotEmpty)
               Text('Time Remaining: ${widget.task.timeRemaining}'),
             const SizedBox(height: 8),
-            Text('Status: ${widget.task.isCompleted ? 'Completed' : 'Pending'}'),
+            Text(
+                'Status: ${widget.task.isCompleted ? 'Completed' : 'Pending'}'),
             const SizedBox(height: 16),
             // Only HODs and Plant Head can see these details
-            if (currentUser != null && 
-               (currentUser.role == UserRole.hod || 
-                currentUser.role == UserRole.plantHead))
+            if (currentUser != null &&
+                (currentUser.role == UserRole.hod ||
+                    currentUser.role == UserRole.plantHead))
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -73,20 +75,20 @@ class _TaskItemState extends State<TaskItem> {
 
   @override
   Widget build(BuildContext context) {
-    final isTimeWarning = widget.task.timeRemaining.contains('hour') || 
-                         widget.task.timeRemaining.contains('mins');
-    
+    final isTimeWarning = widget.task.timeRemaining.contains('hour') ||
+        widget.task.timeRemaining.contains('mins');
+
     final currentUser = AuthService.currentUser;
-    final bool canUpdateTasks = currentUser != null && 
-                              currentUser.role == UserRole.shiftIncharge;
-    
+    final bool canUpdateTasks =
+        currentUser != null && currentUser.role == UserRole.shiftIncharge;
+
     return GestureDetector(
       onTap: _showTaskDetails,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border(
-            bottom: BorderSide(color: Colors.grey[200]!),
+            bottom: BorderSide(color: AppColors.borderLight),
           ),
         ),
         child: Padding(
@@ -97,7 +99,8 @@ class _TaskItemState extends State<TaskItem> {
               if (widget.task.isCompleted)
                 Container(
                   margin: const EdgeInsets.only(right: 12),
-                  padding: const EdgeInsets.all(2),
+                  height: 20,
+                  width: 20,
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(4),
@@ -114,24 +117,25 @@ class _TaskItemState extends State<TaskItem> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  onChanged: canUpdateTasks ? (bool? value) {
-                    setState(() {
-                      isChecked = value ?? false;
-                    });
-                    // In a real app, we would update the task status in the database
-                    
-                    // Show success message for demo purposes
-                    if (value == true) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Task "${widget.task.name}" marked as completed'),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  } : null,
+                  onChanged: canUpdateTasks
+                      ? (bool? value) {
+                          setState(() {
+                            isChecked = value ?? false;
+                          });
+
+                          if (value == true) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Task "${widget.task.name}" marked as completed'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        }
+                      : null,
                 ),
-              
+
               // Task name and time remaining
               Expanded(
                 child: Column(
@@ -149,20 +153,21 @@ class _TaskItemState extends State<TaskItem> {
                         widget.task.timeRemaining,
                         style: TextStyle(
                           fontSize: 12,
-                          color: isTimeWarning ? Colors.red : Colors.grey[600],
-                          fontWeight: isTimeWarning ? FontWeight.bold : FontWeight.normal,
+                          color: isTimeWarning
+                              ? AppColors.timeRed
+                              : Colors.grey[600],
+                          fontWeight: isTimeWarning
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                         ),
                       ),
                   ],
                 ),
               ),
-              
-              // Info icon for more details
-              Icon(
-                Icons.info_outline,
-                size: 16,
-                color: Colors.grey[400],
-              ),
+
+              // Remove info icon - not in the original design
+              // Add appropriate spacing
+              const SizedBox(width: 8),
             ],
           ),
         ),

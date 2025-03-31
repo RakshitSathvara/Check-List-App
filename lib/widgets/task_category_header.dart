@@ -1,9 +1,10 @@
+import 'package:check_list_app/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class TaskCategoryHeader extends StatelessWidget {
   final String title;
   final bool isExpandable;
-  
+
   const TaskCategoryHeader({
     Key? key,
     required this.title,
@@ -14,7 +15,7 @@ class TaskCategoryHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     // Special formatting for maintenance categories
     final bool isMaintenanceCategory = title.contains('Preventive/Planned');
-    
+
     if (isMaintenanceCategory) {
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
@@ -44,18 +45,18 @@ class TaskCategoryHeader extends StatelessWidget {
         ),
       );
     }
-    
-    // Regular category header
+
+    // Regular category header - updated to match design
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
       margin: const EdgeInsets.only(bottom: 8),
-      color: Colors.grey[200],
+      color: AppColors.headerBg,
       child: Text(
         title,
         style: TextStyle(
           fontSize: 12,
-          color: Colors.grey[600],
+          color: AppColors.categoryText,
           fontWeight: FontWeight.w500,
         ),
       ),

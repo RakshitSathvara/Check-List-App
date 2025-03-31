@@ -1,5 +1,6 @@
 // screens/home_screen.dart
 import 'package:check_list_app/services/auth_service.dart';
+import 'package:check_list_app/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import '../widgets/task_tab_view.dart';
 import '../models/dummy_data.dart';
@@ -13,11 +14,13 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentIndex = 0; // 0 for Due Tasks, 1 for Completed Tasks
   int _tabIndex = 0; // 0 for Operational, 1 for Maintenance
-  final String _currentDateTime = DateFormat('dd MMMM yyyy HH:mm').format(DateTime.now());
+  final String _currentDateTime =
+      DateFormat('dd MMMM yyyy HH:mm').format(DateTime.now());
 
   @override
   void initState() {
@@ -28,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _tabIndex = _tabController.index;
       });
     });
-    
+
     // Check if user is logged in
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (AuthService.currentUser == null) {
@@ -61,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ],
       ),
     );
-    
+
     if (confirmed == true) {
       AuthService.logout();
       Navigator.of(context).pushReplacementNamed('/login');
@@ -91,12 +94,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           children: [
             // App Header
             _buildAppBar(departmentTitle),
-            
+
             // Date Header
             Container(
               padding: const EdgeInsets.symmetric(vertical: 15),
               width: double.infinity,
-              color: Colors.purple[100],
+              color: AppColors.tabPurple,
               child: Center(
                 child: Text(
                   _currentDateTime,
@@ -106,40 +109,40 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               ),
             ),
-            
+
             // Tab Bar (Operational / Maintenance)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(25),
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(color: AppColors.borderLight),
               ),
               child: TabBar(
                 controller: _tabController,
                 indicator: BoxDecoration(
                   borderRadius: BorderRadius.circular(25),
-                  color: Colors.purple[100],
+                  color: AppColors.tabPurple,
                 ),
                 labelColor: Colors.black,
                 unselectedLabelColor: Colors.black,
                 tabs: [
                   Tab(
+                    height: 40, // Increase height to match design
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (_tabIndex == 0) 
-                          const Icon(Icons.check, size: 16),
+                        if (_tabIndex == 0) const Icon(Icons.check, size: 16),
                         const SizedBox(width: 4),
                         const Text('Operational'),
                       ],
                     ),
                   ),
                   Tab(
+                    height: 40, // Increase height to match design
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (_tabIndex == 1) 
-                          const Icon(Icons.check, size: 16),
+                        if (_tabIndex == 1) const Icon(Icons.check, size: 16),
                         const SizedBox(width: 4),
                         const Text('Maintenance'),
                       ],
@@ -148,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ],
               ),
             ),
-            
+
             // Tab Content
             Expanded(
               child: TabBarView(
@@ -158,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   _currentIndex == 0
                       ? TaskTabView(tasks: getDummyOperationalTasks())
                       : TaskTabView(tasks: getCompletedOperationalTasks()),
-                  
+
                   // Maintenance Tab
                   _currentIndex == 0
                       ? TaskTabView(tasks: getDummyMaintenanceTasks())
@@ -166,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ],
               ),
             ),
-            
+
             // Bottom Navigation
             Container(
               decoration: BoxDecoration(
@@ -265,7 +268,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 // Show a simple message for demo
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Alerts feature is available for HODs and Plant Heads'),
+                    content: Text(
+                        'Alerts feature is available for HODs and Plant Heads'),
                   ),
                 );
               },
@@ -280,7 +284,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 // Show a simple message for demo
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Analytics feature is available for Plant Heads'),
+                    content:
+                        Text('Analytics feature is available for Plant Heads'),
                   ),
                 );
               },
@@ -334,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               },
             ),
           ),
-          
+
           // Page Title
           Text(
             '$departmentTitle - Shift B',
@@ -343,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               fontWeight: FontWeight.bold,
             ),
           ),
-          
+
           // Profile Icon
           GestureDetector(
             onTap: _logout,
@@ -363,31 +368,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildBottomNavButton({
-    required String title,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              width: 3,
-              color: isSelected ? Colors.purple : Colors.transparent,
-            ),
-          ),
-        ),
-        child: Text(
-          title,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: isSelected ? Colors.purple : Colors.grey,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+  required String title,
+  required bool isSelected,
+  required VoidCallback onTap,
+}) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            width: 3,
+            color: isSelected ? AppColors.selectedPurple : Colors.transparent,
           ),
         ),
       ),
-    );
-  }
+      child: Text(
+        title,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: isSelected ? AppColors.selectedPurple : Colors.grey,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    ),
+  );
+}
 }
