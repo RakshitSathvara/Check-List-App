@@ -39,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xFFF9F5F4),
       body: SafeArea(
         child: Column(
           children: [
@@ -49,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen>
             Container(
               padding: const EdgeInsets.symmetric(vertical: 15),
               width: double.infinity,
-              color: const Color(0xFFE1BEE7),
+              color: const Color(0xFFE7DEF6),
               child: Center(
                 child: Text(
                   _currentDateTime,
@@ -73,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen>
                 child: TabBar(
                   controller: _tabController,
                   indicator: const BoxDecoration(
-                    color: Color(0xFFE1BEE7),
+                    color: Color(0xFFE7DEF6),
                   ),
                   indicatorSize: TabBarIndicatorSize.tab,
                   dividerColor: Colors.transparent,
@@ -116,6 +117,13 @@ class _HomeScreenState extends State<HomeScreen>
                   },
                 ),
               ),
+            ),
+
+            const SizedBox(height: 8),
+
+            const Divider(
+              height: 1,
+              color: Colors.grey,
             ),
 
             // Tab Content
@@ -180,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Color(0xFFFDF7FF),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -228,6 +236,7 @@ class _HomeScreenState extends State<HomeScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        color: Color(0XFFFDF7FF),
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -316,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 1), // Small gap between items
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5), // Light gray background
+        color: const Color(0xFFF3EFEE), // Light gray background
         borderRadius: BorderRadius.circular(4),
       ),
       child: Padding(
@@ -394,93 +403,94 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // Operational Completed Tasks
+// Operational Completed Tasks with proper background
   Widget _buildOperationalCompletedTasksView() {
     // Get completed tasks from dummy data
     final completedTasks = getCompletedOperationalTasks();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 8.0, bottom: 8.0),
-            child: Text(
-              "COMPLETED",
-              style: TextStyle(
-                color: Color(0xFFBDBDBD),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          ...completedTasks
-              .map((task) => _buildCompletedTaskItem(task))
-              .toList(),
-        ],
-      ),
-    );
-  }
-
-  // Completed Task Item
-  Widget _buildCompletedTaskItem(Task task) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[200]!),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
+      color: const Color(0xFFF9F5F4), // Match the container background color
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Completed checkbox
-            Container(
-              margin: const EdgeInsets.only(right: 12),
-              height: 20,
-              width: 20,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Icon(
-                Icons.check,
-                color: Colors.white,
-                size: 16,
-              ),
-            ),
-
-            // Task name
-            Expanded(
+            // COMPLETED Header
+            const Padding(
+              padding: EdgeInsets.only(top: 16, bottom: 12, left: 8),
               child: Text(
-                task.name,
-                style: const TextStyle(
+                "COMPLETED",
+                style: TextStyle(
+                  color: Color(0xFFD2BDB7), // Light brown/beige color
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
+
+            // Completed task items
+            ...completedTasks.map((task) => _buildCompletedTaskItem(task)),
           ],
         ),
       ),
     );
   }
 
-  // Category Header (HMI, BLOWER, etc.)
-  Widget _buildCategoryHeader(String title) {
+// Completed Task Item with enhanced rounded corners
+  Widget _buildCompletedTaskItem(Task task) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-      margin: const EdgeInsets.only(top: 16, bottom: 8),
-      color: const Color(0xFFF5F5F5),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 12,
-          color: Color(0xFF9E9E9E),
-          fontWeight: FontWeight.w500,
+      margin: const EdgeInsets.only(bottom: 8, left: 4, right: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F5F4),
+        borderRadius: BorderRadius.circular(12), // Rounded corners
+        border: Border.all(
+          color: Colors.grey.shade200,
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 1,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      clipBehavior:
+          Clip.antiAlias, // Ensures content respects the rounded corners
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        child: Row(
+          children: [
+            // Completed checkbox - gray square with check icon
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              height: 24,
+              width: 24,
+              decoration: BoxDecoration(
+                color: const Color(0xFF999494), // Gray background
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.check,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+            ),
+
+            // Task name in gray
+            Expanded(
+              child: Text(
+                task.name,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF757575), // Gray text color
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
