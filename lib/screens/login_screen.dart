@@ -81,21 +81,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Logo and Company Name
                         _buildHeader(),
                         
-                        const SizedBox(height: 48),
+                        const SizedBox(height: 60),
                         
                         // Login Form
                         _buildLoginForm(),
                         
                         const Spacer(),
                         
-                        // App Name
-                        const Text(
-                          'Checklist App for VGPL',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 14,
-                          ),
-                        ),
+                        
                       ],
                     ),
                   ),
@@ -109,46 +102,27 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildHeader() {
-    return Column(
-      children: [
-        // Vishakha Glass Logo (placeholder)
-        Container(
-          width: 150,
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.red,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Center(
-            child: Text(
-              'VISHAKHA',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+  return Column(
+    children: [
+      // Vishakha Glass Logo from assets
+      Image.asset(
+        'assets/images/logo.png',
+        width: 600,
+        height: 100,
+        fit: BoxFit.cover,
+      ),
+      const SizedBox(height: 40),
+      // Keep only the login instruction text
+      const Text(
+        'Login with your DarwinBox ID',
+        style: TextStyle(
+          color: Colors.grey,
+          fontSize: 16,
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Factory Process Checklist',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Login with your DarwinBox ID',
-          style: TextStyle(
-            color: Colors.grey,
-            fontSize: 16,
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
   Widget _buildLoginForm() {
     final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
@@ -231,8 +205,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
                   : const Text(
-                      'LOGIN',
-                      style: TextStyle(fontSize: 16),
+                      'Login',
+                      style: TextStyle(fontSize: 16,color: Colors.white),
                     ),
             ),
             
