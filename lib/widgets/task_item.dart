@@ -3,6 +3,7 @@ import 'package:check_list_app/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../models/user.dart';
+import '../utils/responsive_utils.dart';
 
 class TaskItem extends StatefulWidget {
   final Task task;
@@ -27,22 +28,37 @@ class _TaskItemState extends State<TaskItem> {
 
   void _showTaskDetails() {
     final currentUser = AuthService.currentUser;
+    final bool isTablet = ResponsiveUtils.isTablet(context);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(widget.task.name),
+        title: Text(
+          widget.task.name,
+          style: TextStyle(
+            fontSize: isTablet ? 20.0 : 18.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Category: ${widget.task.category}'),
+            Text(
+              'Category: ${widget.task.category}',
+              style: TextStyle(fontSize: isTablet ? 16.0 : 14.0),
+            ),
             const SizedBox(height: 8),
             if (widget.task.timeRemaining.isNotEmpty)
-              Text('Time Remaining: ${widget.task.timeRemaining}'),
+              Text(
+                'Time Remaining: ${widget.task.timeRemaining}',
+                style: TextStyle(fontSize: isTablet ? 16.0 : 14.0),
+              ),
             const SizedBox(height: 8),
             Text(
-                'Status: ${widget.task.isCompleted ? 'Completed' : 'Pending'}'),
+              'Status: ${widget.task.isCompleted ? 'Completed' : 'Pending'}',
+              style: TextStyle(fontSize: isTablet ? 16.0 : 14.0),
+            ),
             const SizedBox(height: 16),
             // Only HODs and Plant Head can see these details
             if (currentUser != null &&
@@ -52,13 +68,22 @@ class _TaskItemState extends State<TaskItem> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Divider(),
-                  const Text(
+                  Text(
                     'Additional Information:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isTablet ? 16.0 : 14.0,
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  const Text('Last Updated: March 3, 2025 04:15 AM'),
-                  const Text('Updated By: Rajesh Kumar'),
+                  Text(
+                    'Last Updated: March 3, 2025 04:15 AM',
+                    style: TextStyle(fontSize: isTablet ? 16.0 : 14.0),
+                  ),
+                  Text(
+                    'Updated By: Rajesh Kumar',
+                    style: TextStyle(fontSize: isTablet ? 16.0 : 14.0),
+                  ),
                 ],
               ),
           ],
@@ -66,21 +91,31 @@ class _TaskItemState extends State<TaskItem> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('CLOSE'),
+            child: Text(
+              'CLOSE',
+              style: TextStyle(fontSize: isTablet ? 16.0 : 14.0),
+            ),
           ),
         ],
+        contentPadding: EdgeInsets.all(isTablet ? 24.0 : 16.0),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
     final isTimeWarning = widget.task.timeRemaining.contains('hour') ||
         widget.task.timeRemaining.contains('mins');
 
     final currentUser = AuthService.currentUser;
     final bool canUpdateTasks =
         currentUser != null && currentUser.role == UserRole.shiftIncharge;
+
+    // Scale sizing for tablets
+    final double checkboxSize = isTablet ? 24.0 : 20.0;
+    final double iconSize = isTablet ? 20.0 : 16.0;
+    final double verticalPadding = isTablet ? 16.0 : 12.0;
 
     return GestureDetector(
       onTap: _showTaskDetails,
@@ -92,48 +127,55 @@ class _TaskItemState extends State<TaskItem> {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: EdgeInsets.symmetric(
+            vertical: verticalPadding,
+            horizontal: isTablet ? 16.0 : 12.0,
+          ),
           child: Row(
             children: [
               // Checkbox or Completed indicator
               if (widget.task.isCompleted)
                 Container(
                   margin: const EdgeInsets.only(right: 12),
-                  height: 20,
-                  width: 20,
+                  height: checkboxSize,
+                  width: checkboxSize,
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.check,
                     color: Colors.white,
-                    size: 16,
+                    size: iconSize,
                   ),
                 )
               else
-                Checkbox(
-                  value: isChecked,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  onChanged: canUpdateTasks
-                      ? (bool? value) {
-                          setState(() {
-                            isChecked = value ?? false;
-                          });
+                SizedBox(
+                  height: checkboxSize,
+                  width: checkboxSize,
+                  child: Checkbox(
+                    value: isChecked,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    onChanged: canUpdateTasks
+                        ? (bool? value) {
+                            setState(() {
+                              isChecked = value ?? false;
+                            });
 
-                          if (value == true) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    'Task "${widget.task.name}" marked as completed'),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
+                            if (value == true) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Task "${widget.task.name}" marked as completed'),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
                           }
-                        }
-                      : null,
+                        : null,
+                  ),
                 ),
 
               // Task name and time remaining
@@ -143,8 +185,11 @@ class _TaskItemState extends State<TaskItem> {
                   children: [
                     Text(
                       widget.task.name,
-                      style: const TextStyle(
-                        fontSize: 14,
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getScaledFontSize(
+                          context, 
+                          14.0
+                        ),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -152,7 +197,10 @@ class _TaskItemState extends State<TaskItem> {
                       Text(
                         widget.task.timeRemaining,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: ResponsiveUtils.getScaledFontSize(
+                            context, 
+                            12.0
+                          ),
                           color: isTimeWarning
                               ? AppColors.timeRed
                               : Colors.grey[600],
@@ -165,9 +213,16 @@ class _TaskItemState extends State<TaskItem> {
                 ),
               ),
 
-              // Remove info icon - not in the original design
-              // Add appropriate spacing
-              const SizedBox(width: 8),
+              // Add more spacing for tablets
+              SizedBox(width: isTablet ? 16.0 : 8.0),
+              
+              // Optional: Add a detail icon for tablets
+              if (isTablet)
+                Icon(
+                  Icons.info_outline,
+                  size: 20,
+                  color: Colors.grey[400],
+                ),
             ],
           ),
         ),

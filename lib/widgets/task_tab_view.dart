@@ -1,6 +1,6 @@
-
 import 'package:flutter/material.dart';
 import '../models/task.dart';
+import '../utils/responsive_utils.dart';
 import 'task_item.dart';
 import 'task_category_header.dart';
 
@@ -14,6 +14,8 @@ class TaskTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
+    
     // Group tasks by category
     Map<String, List<Task>> groupedTasks = {};
     
@@ -28,19 +30,22 @@ class TaskTabView extends StatelessWidget {
     final bool showCompletedHeader = tasks.isNotEmpty && tasks.first.isCompleted;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 24.0 : 16.0, 
+        vertical: isTablet ? 12.0 : 8.0
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Add COMPLETED text for completed tasks view
           if (showCompletedHeader)
             Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
+              padding: EdgeInsets.only(bottom: isTablet ? 16.0 : 12.0),
               child: Text(
                 'COMPLETED',
                 style: TextStyle(
                   color: Colors.grey[500],
-                  fontSize: 12,
+                  fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -63,7 +68,7 @@ class TaskTabView extends StatelessWidget {
                   TaskItem(task: task)
                 ),
                 
-                const SizedBox(height: 16),
+                SizedBox(height: isTablet ? 24.0 : 16.0),
               ],
             );
           }),

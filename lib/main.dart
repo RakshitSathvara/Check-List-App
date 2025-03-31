@@ -2,10 +2,22 @@
 
 import 'package:check_list_app/services/auth_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 
 void main() {
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set preferred orientations to allow both portrait and landscape
+  // This is important for tablet support
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+  
   runApp(const FactoryChecklistApp());
 }
 

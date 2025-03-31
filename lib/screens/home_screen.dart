@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/dummy_data.dart';
 import '../models/task.dart';
+import '../utils/responsive_utils.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -38,6 +39,12 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
+    final bool isLandscape = ResponsiveUtils.isLandscape(context);
+    
+    // Determine if we should use a side-by-side layout on tablets in landscape
+    final bool useSplitView = isTablet && isLandscape;
+    
     return Scaffold(
       backgroundColor: Color(0xFFF9F5F4),
       body: SafeArea(
@@ -54,8 +61,9 @@ class _HomeScreenState extends State<HomeScreen>
               child: Center(
                 child: Text(
                   _currentDateTime,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w500,
+                    fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
                   ),
                 ),
               ),
@@ -63,8 +71,11 @@ class _HomeScreenState extends State<HomeScreen>
 
             // Tab Bar (Operational / Maintenance)
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              height: 40,
+              margin: EdgeInsets.symmetric(
+                horizontal: isTablet ? 24 : 16,
+                vertical: 8,
+              ),
+              height: isTablet ? 48 : 40,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.grey.shade300),
@@ -82,30 +93,33 @@ class _HomeScreenState extends State<HomeScreen>
                   unselectedLabelColor: Colors.black,
                   overlayColor: MaterialStateProperty.all(Colors.transparent),
                   labelPadding: EdgeInsets.zero,
+                  labelStyle: TextStyle(
+                    fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
+                  ),
                   tabs: [
                     Tab(
-                      height: 40,
+                      height: isTablet ? 48 : 40,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           if (_tabController.index == 0)
-                            const Padding(
-                              padding: EdgeInsets.only(right: 4.0),
-                              child: Icon(Icons.check, size: 16),
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4.0),
+                              child: Icon(Icons.check, size: isTablet ? 20 : 16),
                             ),
                           const Text('Operational'),
                         ],
                       ),
                     ),
                     Tab(
-                      height: 40,
+                      height: isTablet ? 48 : 40,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           if (_tabController.index == 1)
-                            const Padding(
-                              padding: EdgeInsets.only(right: 4.0),
-                              child: Icon(Icons.check, size: 16),
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4.0),
+                              child: Icon(Icons.check, size: isTablet ? 20 : 16),
                             ),
                           const Text('Maintenance'),
                         ],
@@ -119,65 +133,127 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
 
-            const SizedBox(height: 8),
-
-            const Divider(
-              height: 1,
-              color: Colors.grey,
-            ),
-
-            // Tab Content
+            // In landscape on tablet, show Due and Completed side by side
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  // Operational Tab
-                  _currentIndex == 0
-                      ? _buildOperationalDueTasksView()
-                      : _buildOperationalCompletedTasksView(),
+              child: useSplitView
+                  ? Row(
+                      children: [
+                        // Due Tasks (Left side)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  'Due Tasks',
+                                  style: TextStyle(
+                                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF673AB7),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: TabBarView(
+                                  controller: _tabController,
+                                  children: [
+                                    _buildOperationalDueTasksView(),
+                                    _buildMaintenanceDueTasksView(),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Vertical divider
+                        Container(
+                          width: 1,
+                          color: Colors.grey[300],
+                        ),
+                        
+                        // Completed Tasks (Right side)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  'Completed Tasks',
+                                  style: TextStyle(
+                                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: TabBarView(
+                                  controller: _tabController,
+                                  children: [
+                                    _buildOperationalCompletedTasksView(),
+                                    _buildMaintenanceCompletedTasksView(),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : TabBarView(
+                      controller: _tabController,
+                      children: [
+                        // Operational Tab
+                        _currentIndex == 0
+                            ? _buildOperationalDueTasksView()
+                            : _buildOperationalCompletedTasksView(),
 
-                  // Maintenance Tab
-                  _currentIndex == 0
-                      ? _buildMaintenanceDueTasksView()
-                      : _buildMaintenanceCompletedTasksView(),
-                ],
-              ),
+                        // Maintenance Tab
+                        _currentIndex == 0
+                            ? _buildMaintenanceDueTasksView()
+                            : _buildMaintenanceCompletedTasksView(),
+                      ],
+                    ),
             ),
 
-            // Bottom Navigation
-            Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: Colors.grey[300]!),
+            // Show bottom navigation only in portrait or on phones
+            if (!useSplitView)
+              Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Color(0xFFE7DEF6)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildBottomNavButton(
+                        title: 'Due Tasks',
+                        isSelected: _currentIndex == 0,
+                        onTap: () {
+                          setState(() {
+                            _currentIndex = 0;
+                          });
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildBottomNavButton(
+                        title: 'Completed Tasks',
+                        isSelected: _currentIndex == 1,
+                        onTap: () {
+                          setState(() {
+                            _currentIndex = 1;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildBottomNavButton(
-                      title: 'Due Tasks',
-                      isSelected: _currentIndex == 0,
-                      onTap: () {
-                        setState(() {
-                          _currentIndex = 0;
-                        });
-                      },
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildBottomNavButton(
-                      title: 'Completed Tasks',
-                      isSelected: _currentIndex == 1,
-                      onTap: () {
-                        setState(() {
-                          _currentIndex = 1;
-                        });
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -185,10 +261,15 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildAppBar() {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
+    
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(
+        vertical: isTablet ? 20.0 : 16.0,
+        horizontal: isTablet ? 24.0 : 16.0,
+      ),
       decoration: BoxDecoration(
-        color: Color(0xFFFDF7FF),
+        color: Color(0xFFF9F5F4),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -202,24 +283,24 @@ class _HomeScreenState extends State<HomeScreen>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Menu Icon
-          const Icon(Icons.menu),
+          Icon(Icons.menu, size: isTablet ? 28.0 : 24.0),
 
           // Page Title
-          const Text(
+          Text(
             'Rolling - Shift B',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: isTablet ? 18.0 : 16.0,
               fontWeight: FontWeight.bold,
             ),
           ),
 
           // Profile Icon
-          const CircleAvatar(
+          CircleAvatar(
             backgroundColor: Colors.grey,
-            radius: 14,
+            radius: isTablet ? 18.0 : 14.0,
             child: Icon(
               Icons.person,
-              size: 16,
+              size: isTablet ? 20.0 : 16.0,
               color: Colors.white,
             ),
           ),
@@ -233,11 +314,13 @@ class _HomeScreenState extends State<HomeScreen>
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        color: Color(0XFFFDF7FF),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        color: Color(0xFFFDF7FF),
+        padding: EdgeInsets.symmetric(vertical: isTablet ? 16.0 : 12.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -245,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen>
               title,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
                 color: isSelected ? const Color(0xFF673AB7) : Colors.grey[600],
                 fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
               ),
@@ -256,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen>
                 width: _getTextWidth(
                     title,
                     TextStyle(
-                      fontSize: 14,
+                      fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
                       fontWeight: FontWeight.w500,
                     )),
                 height: 3,
@@ -272,6 +355,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildOperationalDueTasksView() {
     // Get the tasks from dummy data
     final tasks = getDummyOperationalTasks();
+    final bool isTablet = ResponsiveUtils.isTablet(context);
 
     // Group tasks by category
     Map<String, List<Task>> groupedTasks = {};
@@ -283,7 +367,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: groupedTasks.entries.map((entry) {
@@ -295,13 +379,15 @@ class _HomeScreenState extends State<HomeScreen>
             children: [
               // Category label (HMI, BLOWER, etc.)
               Padding(
-                padding: const EdgeInsets.only(top: 24, bottom: 4),
+                padding: EdgeInsets.only(
+                  top: isTablet ? 32.0 : 24.0, 
+                  bottom: 4
+                ),
                 child: Text(
                   category,
-                  style: const TextStyle(
-                    color:
-                        Color(0xFFD0B0A0), // Soft brownish color for category
-                    fontSize: 16,
+                  style: TextStyle(
+                    color: const Color(0xFFCAB3AC), // Soft brownish color for category
+                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
                     fontWeight: FontWeight.w400,
                   ),
                 ),
@@ -316,20 +402,24 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-// Due Task Item
+  // Due Task Item
   Widget _buildDueTaskItem(Task task) {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
     bool isChecked = _checkedTasks[task.id] ?? false;
     final bool isTimeWarning = task.timeRemaining.contains('hour') ||
         task.timeRemaining.contains('mins');
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 1), // Small gap between items
+      margin: const EdgeInsets.only(bottom: 8), // Small gap between items
       decoration: BoxDecoration(
         color: const Color(0xFFF3EFEE), // Light gray background
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        padding: EdgeInsets.symmetric(
+          vertical: isTablet ? 16.0 : 12.0,
+          horizontal: isTablet ? 16.0 : 12.0,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -352,18 +442,18 @@ class _HomeScreenState extends State<HomeScreen>
               },
               child: Container(
                 margin: const EdgeInsets.only(right: 12, top: 2),
-                height: 24,
-                width: 24,
+                height: isTablet ? 28.0 : 24.0,
+                width: isTablet ? 28.0 : 24.0,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   border: Border.all(color: Colors.grey[400]!),
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: isChecked
-                    ? const Icon(
+                    ? Icon(
                         Icons.check,
-                        color: Colors.white,
-                        size: 16,
+                        color: Colors.grey[600],
+                        size: isTablet ? 20.0 : 16.0,
                       )
                     : null,
               ),
@@ -376,17 +466,17 @@ class _HomeScreenState extends State<HomeScreen>
                 children: [
                   Text(
                     task.name,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: isTablet ? 18.0 : 16.0,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   if (task.timeRemaining.isNotEmpty)
                     Text(
                       task.timeRemaining,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: isTablet ? 16.0 : 14.0,
                         color: isTimeWarning
                             ? const Color(0xFFE53935)
                             : Colors.grey[600],
@@ -403,94 +493,110 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-// Operational Completed Tasks with proper background
+  // Operational Completed Tasks
   Widget _buildOperationalCompletedTasksView() {
     // Get completed tasks from dummy data
     final completedTasks = getCompletedOperationalTasks();
+    final bool isTablet = ResponsiveUtils.isTablet(context);
 
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(
+              top: isTablet ? 16.0 : 8.0,
+              bottom: isTablet ? 16.0 : 8.0
+            ),
+            child: Text(
+              "COMPLETED",
+              style: TextStyle(
+                color: const Color(0xFFBDBDBD),
+                fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          ...completedTasks
+              .map((task) => _buildCompletedTaskItem(task))
+              .toList(),
+        ],
+      ),
+    );
+  }
+
+  // Completed Task Item
+  Widget _buildCompletedTaskItem(Task task) {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
+    
     return Container(
-      color: const Color(0xFFF9F5F4), // Match the container background color
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!),
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          vertical: isTablet ? 16.0 : 12.0,
+          horizontal: isTablet ? 16.0 : 12.0,
+        ),
+        child: Row(
           children: [
-            // COMPLETED Header
-            const Padding(
-              padding: EdgeInsets.only(top: 16, bottom: 12, left: 8),
-              child: Text(
-                "COMPLETED",
-                style: TextStyle(
-                  color: Color(0xFFD2BDB7), // Light brown/beige color
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                ),
+            // Completed checkbox
+            Container(
+              margin: const EdgeInsets.only(right: 12),
+              height: isTablet ? 24.0 : 20.0,
+              width: isTablet ? 24.0 : 20.0,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Icon(
+                Icons.check,
+                color: Colors.white,
+                size: isTablet ? 20.0 : 16.0,
               ),
             ),
 
-            // Completed task items
-            ...completedTasks.map((task) => _buildCompletedTaskItem(task)),
+            // Task name
+            Expanded(
+              child: Text(
+                task.name,
+                style: TextStyle(
+                  fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-// Completed Task Item with enhanced rounded corners
-  Widget _buildCompletedTaskItem(Task task) {
+  // Category Header (HMI, BLOWER, etc.)
+  Widget _buildCategoryHeader(String title) {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
+    
     return Container(
-      margin: const EdgeInsets.only(bottom: 8, left: 4, right: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9F5F4),
-        borderRadius: BorderRadius.circular(12), // Rounded corners
-        border: Border.all(
-          color: Colors.grey.shade200,
-          width: 0.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 1,
-            offset: const Offset(0, 1),
-          ),
-        ],
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        vertical: isTablet ? 8.0 : 6.0,
+        horizontal: isTablet ? 12.0 : 8.0,
       ),
-      clipBehavior:
-          Clip.antiAlias, // Ensures content respects the rounded corners
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-        child: Row(
-          children: [
-            // Completed checkbox - gray square with check icon
-            Container(
-              margin: const EdgeInsets.only(right: 16),
-              height: 24,
-              width: 24,
-              decoration: BoxDecoration(
-                color: const Color(0xFF999494), // Gray background
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.check,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-            ),
-
-            // Task name in gray
-            Expanded(
-              child: Text(
-                task.name,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF757575), // Gray text color
-                ),
-              ),
-            ),
-          ],
+      margin: EdgeInsets.only(
+        top: isTablet ? 24.0 : 16.0,
+        bottom: isTablet ? 12.0 : 8.0,
+      ),
+      color: const Color(0xFFF5F5F5),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
+          color: const Color(0xFF9E9E9E),
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
@@ -500,6 +606,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildMaintenanceDueTasksView() {
     // Get maintenance tasks from dummy data
     final tasks = getDummyMaintenanceTasks();
+    final bool isTablet = ResponsiveUtils.isTablet(context);
 
     // Group tasks by category
     Map<String, List<Task>> groupedTasks = {};
@@ -511,7 +618,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: groupedTasks.entries.map((entry) {
@@ -537,19 +644,23 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildMaintenanceCompletedTasksView() {
     // Get completed maintenance tasks from dummy data
     final completedTasks = getCompletedMaintenanceTasks();
+    final bool isTablet = ResponsiveUtils.isTablet(context);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 8.0, bottom: 8.0),
+          Padding(
+            padding: EdgeInsets.only(
+              top: isTablet ? 16.0 : 8.0,
+              bottom: isTablet ? 16.0 : 8.0
+            ),
             child: Text(
               "COMPLETED",
               style: TextStyle(
-                color: Color(0xFFBDBDBD),
-                fontSize: 12,
+                color: const Color(0xFFBDBDBD),
+                fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -564,28 +675,33 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Maintenance Category Header with arrow
   Widget _buildMaintenanceHeader(String title) {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
+    
     return Container(
-      margin: const EdgeInsets.only(top: 16, bottom: 8),
+      margin: EdgeInsets.only(
+        top: isTablet ? 24.0 : 16.0,
+        bottom: isTablet ? 12.0 : 8.0,
+      ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.list,
-            size: 20,
+            size: isTablet ? 24.0 : 20.0,
             color: Colors.grey,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: isTablet ? 12.0 : 8.0),
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
-                fontSize: 14,
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
                 fontWeight: FontWeight.w500,
               ),
             ),
           ),
-          const Icon(
+          Icon(
             Icons.arrow_forward_ios,
-            size: 16,
+            size: isTablet ? 20.0 : 16.0,
             color: Colors.grey,
           ),
         ],
