@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../models/dummy_data.dart';
+import '../models/task.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -13,10 +15,19 @@ class _HomeScreenState extends State<HomeScreen>
   int _currentIndex = 0; // 0 for Due Tasks, 1 for Completed Tasks
   final String _currentDateTime = '3rd March 2025 05:40';
 
+  // Map to keep track of checked tasks
+  final Map<String, bool> _checkedTasks = {};
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // Initialize checked tasks from dummy data
+    final operationalTasks = getDummyOperationalTasks();
+    for (var task in operationalTasks) {
+      _checkedTasks[task.id] = task.isCompleted;
+    }
   }
 
   @override
@@ -210,71 +221,184 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildBottomNavButton({
-  required String title,
-  required bool isSelected,
-  required VoidCallback onTap,
-}) {
-  return GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: isSelected ? const Color(0xFF673AB7) : Colors.grey[600],
-              fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-            ),
-          ),
-          if (isSelected)
-            Container(
-              margin: const EdgeInsets.only(top: 3),
-              width: _getTextWidth(title, TextStyle(
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w500,
-              )),
-              height: 3,
-              color: const Color(0xFF673AB7),
+                color: isSelected ? const Color(0xFF673AB7) : Colors.grey[600],
+                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+              ),
             ),
-        ],
+            if (isSelected)
+              Container(
+                margin: const EdgeInsets.only(top: 3),
+                width: _getTextWidth(
+                    title,
+                    TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    )),
+                height: 3,
+                color: const Color(0xFF673AB7),
+              ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // Operational Due Tasks
   Widget _buildOperationalDueTasksView() {
+    // Get the tasks from dummy data
+    final tasks = getDummyOperationalTasks();
+
+    // Group tasks by category
+    Map<String, List<Task>> groupedTasks = {};
+    for (var task in tasks) {
+      if (!groupedTasks.containsKey(task.category)) {
+        groupedTasks[task.category] = [];
+      }
+      groupedTasks[task.category]!.add(task);
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // HMI Category
-          _buildCategoryHeader("HMI"),
-          _buildTaskItem("Waterflow", "5 hours left", false),
-          _buildTaskItem("Physical condition", "2 hours left", false),
+        children: groupedTasks.entries.map((entry) {
+          final category = entry.key;
+          final categoryTasks = entry.value;
 
-          // BLOWER Category
-          _buildCategoryHeader("BLOWER"),
-          _buildTaskItem("Motor Vibration", "1 hour left", false),
-          _buildTaskItem("Impeller condition", "1 day left", false),
-          _buildTaskItem("Top suction mesh condition", "2 hours left", false),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Category label (HMI, BLOWER, etc.)
+              Padding(
+                padding: const EdgeInsets.only(top: 24, bottom: 4),
+                child: Text(
+                  category,
+                  style: const TextStyle(
+                    color:
+                        Color(0xFFD0B0A0), // Soft brownish color for category
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
 
-          // PNEUMATIC VALVE Category
-          _buildCategoryHeader("PNEUMATIC VALVE"),
-          _buildTaskItem("Air leakage", "6 hours left", false),
-          _buildTaskItem("Bellow condition", "30 mins left", false),
-        ],
+              // Tasks in this category
+              ...categoryTasks.map((task) => _buildDueTaskItem(task)),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+// Due Task Item
+  Widget _buildDueTaskItem(Task task) {
+    bool isChecked = _checkedTasks[task.id] ?? false;
+    final bool isTimeWarning = task.timeRemaining.contains('hour') ||
+        task.timeRemaining.contains('mins');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 1), // Small gap between items
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F5), // Light gray background
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Checkbox
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _checkedTasks[task.id] = !isChecked;
+                });
+
+                // Show notification when task is checked
+                if (_checkedTasks[task.id] == true) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Task "${task.name}" marked as completed'),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              child: Container(
+                margin: const EdgeInsets.only(right: 12, top: 2),
+                height: 24,
+                width: 24,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey[400]!),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: isChecked
+                    ? const Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: 16,
+                      )
+                    : null,
+              ),
+            ),
+
+            // Task name and time remaining
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  if (task.timeRemaining.isNotEmpty)
+                    Text(
+                      task.timeRemaining,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isTimeWarning
+                            ? const Color(0xFFE53935)
+                            : Colors.grey[600],
+                        fontWeight:
+                            isTimeWarning ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   // Operational Completed Tasks
   Widget _buildOperationalCompletedTasksView() {
+    // Get completed tasks from dummy data
+    final completedTasks = getCompletedOperationalTasks();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -291,64 +415,55 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
           ),
-          _buildTaskItem("Bottom suction mesh condition", "", true),
-          _buildTaskItem("Belt condition", "", true),
-          _buildTaskItem("Motor temperature", "", true),
-          _buildTaskItem("Abnormal noise", "", true),
+          ...completedTasks
+              .map((task) => _buildCompletedTaskItem(task))
+              .toList(),
         ],
       ),
     );
   }
 
-  // Maintenance Due Tasks
-  Widget _buildMaintenanceDueTasksView() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Today's Maintenance
-          _buildMaintenanceHeader("Today's Preventive/Planned Maintenance"),
-          _buildTaskItem("Cold Glass (L/R)", "3 hours Left", false),
-          _buildTaskItem("Burner Cleaning", "1 hour Left", false),
-          _buildTaskItem("Top Roller Cleaning By Brush", "4 hours Left", false),
-          _buildTaskItem("Top Roller Washing", "30 mins left", false),
-
-          // Next Day's Maintenance
-          _buildMaintenanceHeader("Next Day's Preventive/Planned Maintenance"),
-          _buildTaskItem("Bottom Roller Washing", "1 day left", false),
-          _buildTaskItem("Hanging Bricks Cleaning", "1 day left", false),
-        ],
+  // Completed Task Item
+  Widget _buildCompletedTaskItem(Task task) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!),
+        ),
       ),
-    );
-  }
-
-  // Maintenance Completed Tasks
-  Widget _buildMaintenanceCompletedTasksView() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 8.0, bottom: 8.0),
-            child: Text(
-              "COMPLETED",
-              style: TextStyle(
-                color: Color(0xFFBDBDBD),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            // Completed checkbox
+            Container(
+              margin: const EdgeInsets.only(right: 12),
+              height: 20,
+              width: 20,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Icon(
+                Icons.check,
+                color: Colors.white,
+                size: 16,
               ),
             ),
-          ),
-          _buildTaskItem("Zernul Bricks", "", true),
-          _buildTaskItem("Washing Pump in Running Condition", "", true),
-          _buildTaskItem("M/c Oil Pump Working", "", true),
-          _buildTaskItem("Water Inlet Temp.", "", true),
-          _buildTaskItem("Water Outlet Temp. Top and Bottom Roller", "", true),
-          _buildTaskItem("Water Outlet Temp. Carraige Roller", "", true),
-          _buildTaskItem("Any Abnormal Sound in Rolling M/c", "", true),
-        ],
+
+            // Task name
+            Expanded(
+              child: Text(
+                task.name,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -367,6 +482,72 @@ class _HomeScreenState extends State<HomeScreen>
           color: Color(0xFF9E9E9E),
           fontWeight: FontWeight.w500,
         ),
+      ),
+    );
+  }
+
+  // Maintenance Due Tasks
+  Widget _buildMaintenanceDueTasksView() {
+    // Get maintenance tasks from dummy data
+    final tasks = getDummyMaintenanceTasks();
+
+    // Group tasks by category
+    Map<String, List<Task>> groupedTasks = {};
+    for (var task in tasks) {
+      if (!groupedTasks.containsKey(task.category)) {
+        groupedTasks[task.category] = [];
+      }
+      groupedTasks[task.category]!.add(task);
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: groupedTasks.entries.map((entry) {
+          final category = entry.key;
+          final categoryTasks = entry.value;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Maintenance category header
+              _buildMaintenanceHeader(category),
+
+              // Tasks in this category
+              ...categoryTasks.map((task) => _buildDueTaskItem(task)).toList(),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // Maintenance Completed Tasks
+  Widget _buildMaintenanceCompletedTasksView() {
+    // Get completed maintenance tasks from dummy data
+    final completedTasks = getCompletedMaintenanceTasks();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0, bottom: 8.0),
+            child: Text(
+              "COMPLETED",
+              style: TextStyle(
+                color: Color(0xFFBDBDBD),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          ...completedTasks
+              .map((task) => _buildCompletedTaskItem(task))
+              .toList(),
+        ],
       ),
     );
   }
@@ -402,89 +583,13 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // Task Item
-  Widget _buildTaskItem(String name, String timeRemaining, bool isCompleted) {
-    final bool isTimeWarning =
-        timeRemaining.contains('hour') || timeRemaining.contains('mins');
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[200]!),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            // Checkbox or Completed indicator
-            if (isCompleted)
-              Container(
-                margin: const EdgeInsets.only(right: 12),
-                height: 20,
-                width: 20,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Icon(
-                  Icons.check,
-                  color: Colors.white,
-                  size: 16,
-                ),
-              )
-            else
-              Container(
-                margin: const EdgeInsets.only(right: 12),
-                height: 20,
-                width: 20,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[400]!),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-
-            // Task name and time remaining
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (timeRemaining.isNotEmpty)
-                    Text(
-                      timeRemaining,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isTimeWarning
-                            ? const Color(0xFFE53935)
-                            : Colors.grey[600],
-                        fontWeight:
-                            isTimeWarning ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   double _getTextWidth(String text, TextStyle style) {
-  final TextPainter textPainter = TextPainter(
-    text: TextSpan(text: text, style: style),
-    maxLines: 1,
-    textDirection: TextDirection.ltr,
-  )..layout(minWidth: 0, maxWidth: double.infinity);
-  
-  return textPainter.width;
-}
+    final TextPainter textPainter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+    )..layout(minWidth: 0, maxWidth: double.infinity);
+
+    return textPainter.width;
+  }
 }

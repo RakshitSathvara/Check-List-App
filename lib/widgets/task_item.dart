@@ -8,9 +8,9 @@ class TaskItem extends StatefulWidget {
   final Task task;
 
   const TaskItem({
-    Key? key,
+    super.key,
     required this.task,
-  }) : super(key: key);
+  });
 
   @override
   State<TaskItem> createState() => _TaskItemState();

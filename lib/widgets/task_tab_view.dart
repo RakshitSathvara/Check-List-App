@@ -8,9 +8,9 @@ class TaskTabView extends StatelessWidget {
   final List<Task> tasks;
 
   const TaskTabView({
-    Key? key,
+    super.key,
     required this.tasks,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -61,12 +61,12 @@ class TaskTabView extends StatelessWidget {
                 // Task items in this category
                 ...categoryTasks.map((task) => 
                   TaskItem(task: task)
-                ).toList(),
+                ),
                 
                 const SizedBox(height: 16),
               ],
             );
-          }).toList(),
+          }),
         ],
       ),
     );

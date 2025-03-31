@@ -6,10 +6,10 @@ class TaskCategoryHeader extends StatelessWidget {
   final bool isExpandable;
 
   const TaskCategoryHeader({
-    Key? key,
+    super.key,
     required this.title,
     this.isExpandable = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
