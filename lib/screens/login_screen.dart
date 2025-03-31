@@ -1,10 +1,9 @@
 // screens/login_screen.dart
 import 'package:check_list_app/services/auth_service.dart';
 import 'package:flutter/material.dart';
-import '../models/user.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
