@@ -56,19 +56,42 @@ The app design includes multiple screens:
 The project follows a structured organization:
 
 ```
-lib/
-├── main.dart              # Entry point for the application
-├── models/
-│   ├── task.dart          # Data model for tasks
-│   ├── user.dart          # User model with roles and authentication
-│   └── dummy_data.dart    # Dummy data for operational and maintenance tasks
-├── screens/
-│   ├── login_screen.dart  # DarwinBox login interface
-│   └── home_screen.dart   # Main screen with tab navigation
-└── widgets/
-    ├── task_tab_view.dart      # Tab content view
-    ├── task_item.dart          # Individual task item
-    └── task_category_header.dart # Header for task categories
+vgpl_checklist_app/
+├── android/                           # Android platform-specific files
+│   ├── app/                           # Android app configuration
+│   └── build.gradle                   # Android build configuration
+│
+├── assets/
+│   └── images/
+│       └── logo.png                   # VGPL company logo
+│
+├── lib/
+│   ├── main.dart                      # App entry point with routing configuration
+│   │
+│   ├── models/                        # Data models
+│   │   ├── task.dart                  # Task data model and related classes
+│   │   ├── user.dart                  # User model with roles and authentication service
+│   │   └── dummy_data.dart            # Dummy data for testing
+│   │
+│   ├── screens/                       # App screens
+│   │   ├── login_screen.dart          # DarwinBox login screen
+│   │   └── home_screen.dart           # Main dashboard with tabs
+│   │
+│   ├── widgets/                       # Reusable UI components
+│   │   ├── task_tab_view.dart         # Tab content for task lists
+│   │   ├── task_item.dart             # Individual task component
+│   │   └── task_category_header.dart  # Category headers for tasks
+│   │
+│   └── services/                      # Business logic and services
+│       ├── auth_service.dart          # Authentication handling (part of user.dart)
+│       └── notification_service.dart   # Email and alarm notifications
+│
+├── test/                              # Unit and widget tests
+│   └── widget_test.dart               # Basic widget tests
+│
+├── pubspec.yaml                       # Project dependencies and assets
+├── pubspec.lock                       # Lock file for dependencies
+└── README.md                          # Project documentation
 ```
 
 ## Installation and Setup
