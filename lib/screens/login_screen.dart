@@ -1,6 +1,7 @@
 // screens/login_screen.dart
 import 'package:check_list_app/services/auth_service.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../utils/responsive_utils.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -42,7 +43,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (success) {
         if (!mounted) return;
-        Navigator.of(context).pushReplacementNamed('/home');
+        // Using go_router instead of Navigator
+        context.go('/home');
       } else {
         setState(() {
           _errorMessage = 'Invalid DarwinBox ID or password.';
