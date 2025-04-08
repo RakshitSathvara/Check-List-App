@@ -7,7 +7,7 @@ import 'auth_service.dart';
 class TaskService {
   static const String _baseUrl = "https://vishakha.roblinx.com/api";
   
-  static Future<List<Task>> fetchOperationalTasks() async {
+  static Future<Map<String, List<Task>>> fetchOperationalTasks() async {
     try {
       final url = Uri.parse('$_baseUrl/shift-incharge-tasks');
       
@@ -30,18 +30,46 @@ class TaskService {
         final Map<String, dynamic> responseData = json.decode(response.body);
         
         if (responseData['status'] == true) {
-          final List<dynamic> tasksJson = responseData['tasks'];
+          final Map<String, List<Task>> result = {
+            'today': [],
+            'tomorrow': []
+          };
           
-          // Convert the JSON to Task objects
-          return tasksJson.map((taskJson) {
-            return Task(
-              id: taskJson['task_id'].toString(),
-              name: taskJson['check_points'],
-              category: taskJson['equipment'],
-              timeRemaining: '', // No time remaining info in API
-              isCompleted: taskJson['completed'] == 1,
-            );
-          }).toList();
+          // Parse today's tasks
+          if (responseData.containsKey('today_tasks')) {
+            final List<dynamic> todayTasksJson = responseData['today_tasks'];
+            result['today'] = todayTasksJson.map((taskJson) {
+              return Task(
+                id: taskJson['task_id'].toString(),
+                name: taskJson['check_points'],
+                category: taskJson['equipment'],
+                timeRemaining: '', // No time remaining info in API
+                isCompleted: taskJson['completed'] == 1,
+                specificationRange: taskJson['specification_range'],
+                isRange: taskJson['is_range'] == 1,
+                completedAt: taskJson['completed_at'],
+              );
+            }).toList();
+          }
+          
+          // Parse tomorrow's tasks
+          if (responseData.containsKey('tomorrow_tasks')) {
+            final List<dynamic> tomorrowTasksJson = responseData['tomorrow_tasks'];
+            result['tomorrow'] = tomorrowTasksJson.map((taskJson) {
+              return Task(
+                id: taskJson['task_id'].toString(),
+                name: taskJson['check_points'],
+                category: taskJson['equipment'],
+                timeRemaining: '', // No time remaining info in API
+                isCompleted: taskJson['completed'] == 1,
+                specificationRange: taskJson['specification_range'],
+                isRange: taskJson['is_range'] == 1,
+                completedAt: taskJson['completed_at'],
+              );
+            }).toList();
+          }
+          
+          return result;
         } else {
           throw Exception(responseData['message'] ?? 'Failed to load tasks');
         }
@@ -50,8 +78,11 @@ class TaskService {
       }
     } catch (e) {
       print('Error fetching operational tasks: $e');
-      // Return an empty list in case of error
-      return [];
+      // Return empty lists in case of error
+      return {
+        'today': [],
+        'tomorrow': []
+      };
     }
   }
 }

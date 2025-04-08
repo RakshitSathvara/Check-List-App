@@ -10,6 +10,9 @@ List<Task> getDummyOperationalTasks() {
       category: 'HMI',
       timeRemaining: '5 hours left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'op2',
@@ -17,6 +20,9 @@ List<Task> getDummyOperationalTasks() {
       category: 'HMI',
       timeRemaining: '2 hours left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     
     // BLOWER Category
@@ -26,6 +32,9 @@ List<Task> getDummyOperationalTasks() {
       category: 'BLOWER',
       timeRemaining: '1 hour left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'op4',
@@ -33,6 +42,9 @@ List<Task> getDummyOperationalTasks() {
       category: 'BLOWER',
       timeRemaining: '1 day left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'op5',
@@ -40,6 +52,9 @@ List<Task> getDummyOperationalTasks() {
       category: 'BLOWER',
       timeRemaining: '2 hours left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
 
     // PNEUMATIC VALVE Category
@@ -49,6 +64,9 @@ List<Task> getDummyOperationalTasks() {
       category: 'PNEUMATIC VALVE',
       timeRemaining: '6 hours left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'op7',
@@ -56,6 +74,9 @@ List<Task> getDummyOperationalTasks() {
       category: 'PNEUMATIC VALVE',
       timeRemaining: '30 mins left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
   ];
 }
@@ -69,6 +90,9 @@ List<Task> getCompletedOperationalTasks() {
       category: 'COMPLETED',
       timeRemaining: '',
       isCompleted: true,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'cop2',
@@ -76,6 +100,9 @@ List<Task> getCompletedOperationalTasks() {
       category: 'COMPLETED',
       timeRemaining: '',
       isCompleted: true,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'cop3',
@@ -83,6 +110,9 @@ List<Task> getCompletedOperationalTasks() {
       category: 'COMPLETED',
       timeRemaining: '',
       isCompleted: true,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'cop4',
@@ -90,6 +120,9 @@ List<Task> getCompletedOperationalTasks() {
       category: 'COMPLETED',
       timeRemaining: '',
       isCompleted: true,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
   ];
 }
@@ -104,6 +137,9 @@ List<Task> getDummyMaintenanceTasks() {
       category: 'Today\'s Preventive/Planned Maintenance',
       timeRemaining: '3 hours Left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'm2',
@@ -111,6 +147,9 @@ List<Task> getDummyMaintenanceTasks() {
       category: 'Today\'s Preventive/Planned Maintenance',
       timeRemaining: '1 hour Left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'm3',
@@ -118,6 +157,9 @@ List<Task> getDummyMaintenanceTasks() {
       category: 'Today\'s Preventive/Planned Maintenance',
       timeRemaining: '4 hours Left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'm4',
@@ -125,6 +167,9 @@ List<Task> getDummyMaintenanceTasks() {
       category: 'Today\'s Preventive/Planned Maintenance',
       timeRemaining: '30 mins left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     
     // Next Day's Preventive/Planned Maintenance
@@ -134,6 +179,9 @@ List<Task> getDummyMaintenanceTasks() {
       category: 'Next Day\'s Preventive/Planned Maintenance',
       timeRemaining: '1 day left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'm6',
@@ -141,6 +189,9 @@ List<Task> getDummyMaintenanceTasks() {
       category: 'Next Day\'s Preventive/Planned Maintenance',
       timeRemaining: '1 day left',
       isCompleted: false,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
   ];
 }
@@ -154,6 +205,9 @@ List<Task> getCompletedMaintenanceTasks() {
       category: 'COMPLETED',
       timeRemaining: '',
       isCompleted: true,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'cm2',
@@ -161,6 +215,9 @@ List<Task> getCompletedMaintenanceTasks() {
       category: 'COMPLETED',
       timeRemaining: '',
       isCompleted: true,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'cm3',
@@ -168,6 +225,9 @@ List<Task> getCompletedMaintenanceTasks() {
       category: 'COMPLETED',
       timeRemaining: '',
       isCompleted: true,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'cm4',
@@ -175,6 +235,9 @@ List<Task> getCompletedMaintenanceTasks() {
       category: 'COMPLETED',
       timeRemaining: '',
       isCompleted: true,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'cm5',
@@ -182,6 +245,9 @@ List<Task> getCompletedMaintenanceTasks() {
       category: 'COMPLETED',
       timeRemaining: '',
       isCompleted: true,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'cm6',
@@ -189,6 +255,9 @@ List<Task> getCompletedMaintenanceTasks() {
       category: 'COMPLETED',
       timeRemaining: '',
       isCompleted: true,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
     Task(
       id: 'cm7',
@@ -196,6 +265,9 @@ List<Task> getCompletedMaintenanceTasks() {
       category: 'COMPLETED',
       timeRemaining: '',
       isCompleted: true,
+      isRange: false,
+      specificationRange: '0.5 to 1.5',
+      completedAt: '',
     ),
   ];
 }

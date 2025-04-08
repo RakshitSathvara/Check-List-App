@@ -4,6 +4,9 @@ class Task {
   final String category;
   final String timeRemaining;
   final bool isCompleted;
+  final String specificationRange;
+  final bool isRange;
+  final String? completedAt;
 
   Task({
     required this.id,
@@ -11,5 +14,8 @@ class Task {
     required this.category,
     required this.timeRemaining,
     this.isCompleted = false,
+    required this.specificationRange,
+    required this.isRange,
+    this.completedAt,
   });
 }

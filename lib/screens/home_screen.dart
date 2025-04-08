@@ -21,7 +21,8 @@ class _HomeScreenState extends State<HomeScreen>
   final Map<String, bool> _checkedTasks = {};
   
   // State for API tasks
-  List<Task> _operationalTasks = [];
+  List<Task> _todayOperationalTasks = [];
+  List<Task> _tomorrowOperationalTasks = [];
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -79,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
   
   void _onTabChanged() {
-    if (_tabController.index == 0 && _operationalTasks.isEmpty) {
+    if (_tabController.index == 0 && _todayOperationalTasks.isEmpty && _tomorrowOperationalTasks.isEmpty) {
       // Fetch operational tasks when operational tab is selected
       _fetchOperationalTasks();
     }
@@ -94,17 +95,18 @@ class _HomeScreenState extends State<HomeScreen>
     });
     
     try {
-      final tasks = await TaskService.fetchOperationalTasks();
+      final tasksMap = await TaskService.fetchOperationalTasks();
       
       // Update the task completion status in _checkedTasks
-      for (var task in tasks) {
+      for (var task in [...tasksMap['today']!, ...tasksMap['tomorrow']!]) {
         if (!_checkedTasks.containsKey(task.id)) {
           _checkedTasks[task.id] = task.isCompleted;
         }
       }
       
       setState(() {
-        _operationalTasks = tasks;
+        _todayOperationalTasks = tasksMap['today']!;
+        _tomorrowOperationalTasks = tasksMap['tomorrow']!;
         _isLoading = false;
       });
     } catch (e) {
@@ -438,10 +440,117 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Operational Due Tasks
   Widget _buildOperationalDueTasksView() {
-    // Get the tasks from API or dummy data
-    final tasks = _operationalTasks.isNotEmpty ? _operationalTasks : getDummyOperationalTasks();
     final bool isTablet = ResponsiveUtils.isTablet(context);
 
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Display loading indicator when loading
+          if (_isLoading)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+            
+          // Display error message if there's an error
+          if (_errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                _errorMessage!,
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+            
+          // TODAY SECTION
+          Padding(
+            padding: EdgeInsets.only(
+              top: isTablet ? 24.0 : 16.0,
+              bottom: isTablet ? 12.0 : 8.0,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.today,
+                  color: const Color(0xFF673AB7),
+                  size: isTablet ? 24.0 : 20.0,
+                ),
+                SizedBox(width: 8.0),
+                Text(
+                  "TODAY",
+                  style: TextStyle(
+                    color: const Color(0xFF673AB7),
+                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Today's tasks or dummy data if no tasks available
+          _buildTasksSection(_todayOperationalTasks.isNotEmpty 
+              ? _todayOperationalTasks 
+              : getDummyOperationalTasks()),
+          
+          // TOMORROW SECTION
+          Padding(
+            padding: EdgeInsets.only(
+              top: isTablet ? 32.0 : 24.0,
+              bottom: isTablet ? 12.0 : 8.0,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.event_note,
+                  color: const Color(0xFF673AB7),
+                  size: isTablet ? 24.0 : 20.0,
+                ),
+                SizedBox(width: 8.0),
+                Text(
+                  "TOMORROW",
+                  style: TextStyle(
+                    color: const Color(0xFF673AB7),
+                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Tomorrow's tasks
+          _buildTasksSection(_tomorrowOperationalTasks),
+          
+          // Add some padding at the bottom
+          SizedBox(height: 16.0),
+        ],
+      ),
+    );
+  }
+
+  // Helper method to build task sections
+  Widget _buildTasksSection(List<Task> tasks) {
+    // If no tasks are available, show a message
+    if (tasks.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Center(
+          child: Text(
+            "No tasks available",
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
+            ),
+          ),
+        ),
+      );
+    }
+    
     // Group tasks by category
     Map<String, List<Task>> groupedTasks = {};
     for (var task in tasks) {
@@ -451,39 +560,36 @@ class _HomeScreenState extends State<HomeScreen>
       groupedTasks[task.category]!.add(task);
     }
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: groupedTasks.entries.map((entry) {
-          final category = entry.key;
-          final categoryTasks = entry.value;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: groupedTasks.entries.map((entry) {
+        final category = entry.key;
+        final categoryTasks = entry.value;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Category label (HMI, BLOWER, etc.)
-              Padding(
-                padding: EdgeInsets.only(
-                  top: isTablet ? 32.0 : 24.0, 
-                  bottom: 4
-                ),
-                child: Text(
-                  category,
-                  style: TextStyle(
-                    color: const Color(0xFFCAB3AC), // Soft brownish color for category
-                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
-                    fontWeight: FontWeight.w400,
-                  ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Category label (HMI, BLOWER, etc.)
+            Padding(
+              padding: EdgeInsets.only(
+                top: ResponsiveUtils.isTablet(context) ? 16.0 : 12.0, 
+                bottom: 4
+              ),
+              child: Text(
+                category,
+                style: TextStyle(
+                  color: const Color(0xFFCAB3AC), // Soft brownish color for category
+                  fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                  fontWeight: FontWeight.w400,
                 ),
               ),
+            ),
 
-              // Tasks in this category
-              ...categoryTasks.map((task) => _buildDueTaskItem(task)),
-            ],
-          );
-        }).toList(),
-      ),
+            // Tasks in this category
+            ...categoryTasks.map((task) => _buildDueTaskItem(task)),
+          ],
+        );
+      }).toList(),
     );
   }
 
