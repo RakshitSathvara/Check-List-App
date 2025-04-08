@@ -284,30 +284,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             
             const SizedBox(height: 16),
-            
-            // Demo Account Info
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Text(
-                'Demo Accounts:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: isTablet ? 16.0 : 14.0,
-                ),
-              ),
-            ),
-            Text(
-              'Shift Incharge: incharge1 / password',
-              style: TextStyle(fontSize: isTablet ? 15.0 : 14.0),
-            ),
-            Text(
-              'HOD: hod1 / password',
-              style: TextStyle(fontSize: isTablet ? 15.0 : 14.0),
-            ),
-            Text(
-              'Plant Head: planthead / password',
-              style: TextStyle(fontSize: isTablet ? 15.0 : 14.0),
-            ),
           ],
         ),
       ),

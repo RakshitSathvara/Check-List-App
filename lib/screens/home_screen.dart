@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/dummy_data.dart';
 import '../models/task.dart';
 import '../utils/responsive_utils.dart';
+import '../services/task_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -14,25 +15,109 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentIndex = 0; // 0 for Due Tasks, 1 for Completed Tasks
-  final String _currentDateTime = '3rd March 2025 05:40';
+  late String _currentDateTime;
 
   // Map to keep track of checked tasks
   final Map<String, bool> _checkedTasks = {};
+  
+  // State for API tasks
+  List<Task> _operationalTasks = [];
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // Set current date time with proper formatting
+    _updateDateTime();
+    
+    // Listen to tab changes
+    _tabController.addListener(_onTabChanged);
 
-    // Initialize checked tasks from dummy data
+    // Initialize with dummy data first
     final operationalTasks = getDummyOperationalTasks();
     for (var task in operationalTasks) {
       _checkedTasks[task.id] = task.isCompleted;
+    }
+    
+    // Fetch operational tasks from API when the screen loads
+    _fetchOperationalTasks();
+  }
+  
+  void _updateDateTime() {
+    final now = DateTime.now();
+    
+    // Get the day with suffix (1st, 2nd, 3rd, etc.)
+    final int day = now.day;
+    final String daySuffix = _getDaySuffix(day);
+    
+    // Format the date as "8th April 2025 05:40"
+    _currentDateTime = '$day$daySuffix ${_getMonthName(now.month)} ${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _getDaySuffix(int day) {
+    if (day >= 11 && day <= 13) {
+      return 'th';
+    }
+    
+    switch (day % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
+  }
+  
+  void _onTabChanged() {
+    if (_tabController.index == 0 && _operationalTasks.isEmpty) {
+      // Fetch operational tasks when operational tab is selected
+      _fetchOperationalTasks();
+    }
+    setState(() {});
+  }
+  
+  // Fetch operational tasks from the API
+  Future<void> _fetchOperationalTasks() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    
+    try {
+      final tasks = await TaskService.fetchOperationalTasks();
+      
+      // Update the task completion status in _checkedTasks
+      for (var task in tasks) {
+        if (!_checkedTasks.containsKey(task.id)) {
+          _checkedTasks[task.id] = task.isCompleted;
+        }
+      }
+      
+      setState(() {
+        _operationalTasks = tasks;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load tasks: $e';
+        _isLoading = false;
+      });
     }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -353,8 +438,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Operational Due Tasks
   Widget _buildOperationalDueTasksView() {
-    // Get the tasks from dummy data
-    final tasks = getDummyOperationalTasks();
+    // Get the tasks from API or dummy data
+    final tasks = _operationalTasks.isNotEmpty ? _operationalTasks : getDummyOperationalTasks();
     final bool isTablet = ResponsiveUtils.isTablet(context);
 
     // Group tasks by category
