@@ -85,4 +85,49 @@ class TaskService {
       };
     }
   }
+  
+  // New method to update task status
+  static Future<bool> updateTaskStatus(String taskId, bool isCompleted) async {
+    try {
+      final url = Uri.parse('$_baseUrl/task/update-status');
+      
+      // Get the auth token from AuthService
+      final authToken = AuthService.authToken;
+      if (authToken == null) {
+        throw Exception('Not authenticated');
+      }
+      
+      // Convert boolean to int (0 or 1)
+      final status = isCompleted ? 1 : 0;
+      
+      // Make the POST request with the auth token
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $authToken',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'task_id': taskId,
+          'status': status,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        
+        if (responseData['status'] == true) {
+          print('Task status updated successfully: ${responseData['message']}');
+          return true;
+        } else {
+          throw Exception(responseData['message'] ?? 'Failed to update task status');
+        }
+      } else {
+        throw Exception('Failed to update task status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error updating task status: $e');
+      return false;
+    }
+  }
 }

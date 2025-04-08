@@ -1,4 +1,5 @@
 import 'package:check_list_app/services/auth_service.dart';
+import 'package:check_list_app/services/task_service.dart';
 import 'package:check_list_app/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import '../models/task.dart';
@@ -19,6 +20,7 @@ class TaskItem extends StatefulWidget {
 
 class _TaskItemState extends State<TaskItem> {
   late bool isChecked;
+  bool _isUpdating = false;
 
   @override
   void initState() {
@@ -49,6 +51,11 @@ class _TaskItemState extends State<TaskItem> {
               style: TextStyle(fontSize: isTablet ? 16.0 : 14.0),
             ),
             const SizedBox(height: 8),
+            Text(
+              'Specification: ${widget.task.specificationRange}',
+              style: TextStyle(fontSize: isTablet ? 16.0 : 14.0),
+            ),
+            const SizedBox(height: 8),
             if (widget.task.timeRemaining.isNotEmpty)
               Text(
                 'Time Remaining: ${widget.task.timeRemaining}',
@@ -59,6 +66,14 @@ class _TaskItemState extends State<TaskItem> {
               'Status: ${widget.task.isCompleted ? 'Completed' : 'Pending'}',
               style: TextStyle(fontSize: isTablet ? 16.0 : 14.0),
             ),
+            if (widget.task.completedAt != null && widget.task.completedAt!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'Completed At: ${widget.task.completedAt}',
+                  style: TextStyle(fontSize: isTablet ? 16.0 : 14.0),
+                ),
+              ),
             const SizedBox(height: 16),
             // Only HODs and Plant Head can see these details
             if (currentUser != null &&
@@ -153,29 +168,65 @@ class _TaskItemState extends State<TaskItem> {
                 SizedBox(
                   height: checkboxSize,
                   width: checkboxSize,
-                  child: Checkbox(
-                    value: isChecked,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    onChanged: canUpdateTasks
-                        ? (bool? value) {
-                            setState(() {
-                              isChecked = value ?? false;
-                            });
+                  child: _isUpdating
+                      ? SizedBox(
+                          height: checkboxSize - 8,
+                          width: checkboxSize - 8,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.0,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.grey[400]!),
+                          ),
+                        )
+                      : Checkbox(
+                          value: isChecked,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          onChanged: canUpdateTasks
+                              ? (bool? value) async {
+                                  if (value == null) return;
+                                  
+                                  setState(() {
+                                    _isUpdating = true;
+                                  });
+                                  
+                                  // Call API to update task status
+                                  final success = await TaskService.updateTaskStatus(
+                                      widget.task.id, value);
+                                  
+                                  if (mounted) {
+                                    setState(() {
+                                      _isUpdating = false;
+                                      if (success) {
+                                        isChecked = value;
+                                      }
+                                    });
+                                  }
 
-                            if (value == true) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Task "${widget.task.name}" marked as completed'),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          }
-                        : null,
-                  ),
+                                  if (success) {
+                                    if (value) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Task "${widget.task.name}" marked as completed'),
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'Failed to update task status. Please try again.'),
+                                        duration: const Duration(seconds: 2),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              : null,
+                        ),
                 ),
 
               // Task name and time remaining
@@ -207,6 +258,22 @@ class _TaskItemState extends State<TaskItem> {
                           fontWeight: isTimeWarning
                               ? FontWeight.bold
                               : FontWeight.normal,
+                        ),
+                      ),
+                    // Display specification range
+                    if (widget.task.specificationRange.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          'Spec: ${widget.task.specificationRange}',
+                          style: TextStyle(
+                            fontSize: ResponsiveUtils.getScaledFontSize(
+                              context, 
+                              11.0
+                            ),
+                            color: Colors.grey[600],
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ),
                   ],
