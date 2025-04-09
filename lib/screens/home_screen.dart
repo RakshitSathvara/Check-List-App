@@ -128,28 +128,28 @@ class _HomeScreenState extends State<HomeScreen>
   }
   
   // Update time remaining for all tasks based on current time
-  void _updateTaskTimesRemaining() {
-    if (_shiftEndTime == null) return;
-    
-    // Clear the map first
-    _taskTimeRemaining.clear();
-    
-    // Calculate time remaining for today's tasks
-    for (var task in _todayOperationalTasks) {
-      final key = _getTaskKey(task.id, 'today');
-      _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
-        _currentTime, 
-        _shiftEndTime!
-      );
-    }
-    
-    // For tomorrow's tasks, we would typically calculate based on tomorrow's shift
-    // For now, we'll just set a generic "1 day left" for all tomorrow tasks
-    for (var task in _tomorrowOperationalTasks) {
-      final key = _getTaskKey(task.id, 'tomorrow');
-      _taskTimeRemaining[key] = "1 day left";
-    }
+  // Enhanced method to update time remaining for all tasks
+void _updateTaskTimesRemaining() {
+  if (_shiftEndTime == null) return;
+  
+  // Clear the map first to avoid stale data
+  _taskTimeRemaining.clear();
+  
+  // Calculate time remaining for today's tasks from API
+  for (var task in _todayOperationalTasks) {
+    final key = _getTaskKey(task.id, 'today');
+    _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
+      _currentTime, 
+      _shiftEndTime!
+    );
   }
+  
+  // For tomorrow's tasks from API, set "1 day left"
+  for (var task in _tomorrowOperationalTasks) {
+    final key = _getTaskKey(task.id, 'tomorrow');
+    _taskTimeRemaining[key] = "1 day left";
+  }
+}
   
   // Helper method to generate a unique key for each task
   String _getTaskKey(String taskId, String section) {
@@ -797,127 +797,136 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // Operational Due Tasks
-  Widget _buildOperationalDueTasksView() {
-    final bool isTablet = ResponsiveUtils.isTablet(context);
+Widget _buildOperationalDueTasksView() {
+  final bool isTablet = ResponsiveUtils.isTablet(context);
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Display loading indicator when loading
-          if (_isLoading)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-            
-          // Display error message if there's an error
-          if (_errorMessage != null)
-            Padding(
+  return SingleChildScrollView(
+    padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Display loading indicator when loading
+        if (_isLoading)
+          Center(
+            child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Text(
-                _errorMessage!,
-                style: TextStyle(color: Colors.red),
-              ),
+              child: CircularProgressIndicator(),
             ),
-            
-          // Show HOD view-only mode info banner
-          if (_userRole == UserRole.hod)
-            Container(
-              margin: EdgeInsets.only(top: 16, bottom: 16),
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.visibility_outlined, color: Colors.grey[600], size: 16),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "HOD view mode: Tasks are read-only",
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
-                      ),
+          ),
+          
+        // Display error message if there's an error
+        if (_errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              _errorMessage!,
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+          
+        // Show HOD view-only mode info banner
+        if (_userRole == UserRole.hod)
+          Container(
+            margin: EdgeInsets.only(top: 16, bottom: 16),
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.visibility_outlined, color: Colors.grey[600], size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "HOD view mode: Tasks are read-only",
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
                     ),
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          
+        // TODAY SECTION
+        Padding(
+          padding: EdgeInsets.only(
+            top: isTablet ? 24.0 : 16.0,
+            bottom: isTablet ? 12.0 : 8.0,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.today,
+                color: const Color(0xFF673AB7),
+                size: isTablet ? 24.0 : 20.0,
               ),
-            ),
-            
-          // TODAY SECTION
-          Padding(
-            padding: EdgeInsets.only(
-              top: isTablet ? 24.0 : 16.0,
-              bottom: isTablet ? 12.0 : 8.0,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.today,
+              SizedBox(width: 8.0),
+              Text(
+                "TODAY",
+                style: TextStyle(
                   color: const Color(0xFF673AB7),
-                  size: isTablet ? 24.0 : 20.0,
+                  fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                  fontWeight: FontWeight.bold,
                 ),
-                SizedBox(width: 8.0),
-                Text(
-                  "TODAY",
-                  style: TextStyle(
-                    color: const Color(0xFF673AB7),
-                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          
-          // Today's tasks or dummy data if no tasks available - pass "today" as section
-          _buildTasksSection(_todayOperationalTasks.isNotEmpty 
-              ? _todayOperationalTasks 
-              : getDummyOperationalTasks().where((t) => !t.isCompleted).toList(), "today"),
-          
-          // TOMORROW SECTION
-          Padding(
-            padding: EdgeInsets.only(
-              top: isTablet ? 32.0 : 24.0,
-              bottom: isTablet ? 12.0 : 8.0,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.event_note,
+        ),
+        
+        // Today's tasks or dummy data if no tasks available - pass "today" as section
+        _buildTasksSection(_todayOperationalTasks.isNotEmpty 
+            ? _todayOperationalTasks 
+            : getDummyOperationalTasks().where((t) => !t.isCompleted).toList(), "today"),
+        
+        // TOMORROW SECTION
+        Padding(
+          padding: EdgeInsets.only(
+            top: isTablet ? 32.0 : 24.0,
+            bottom: isTablet ? 12.0 : 8.0,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.event_note,
+                color: const Color(0xFF673AB7),
+                size: isTablet ? 24.0 : 20.0,
+              ),
+              SizedBox(width: 8.0),
+              Text(
+                "TOMORROW",
+                style: TextStyle(
                   color: const Color(0xFF673AB7),
-                  size: isTablet ? 24.0 : 20.0,
+                  fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                  fontWeight: FontWeight.bold,
                 ),
-                SizedBox(width: 8.0),
-                Text(
-                  "TOMORROW",
-                  style: TextStyle(
-                    color: const Color(0xFF673AB7),
-                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          
-          // Tomorrow's tasks - pass "tomorrow" as section
-          _buildTasksSection(_tomorrowOperationalTasks, "tomorrow"),
-          
-          // Add some padding at the bottom
-          SizedBox(height: 16.0),
-        ],
-      ),
-    );
-  }
+        ),
+        
+        // Tomorrow's tasks, use dummy data if there are no API tasks
+        _buildTasksSection(_tomorrowOperationalTasks.isNotEmpty 
+            ? _tomorrowOperationalTasks 
+            : getDummyOperationalTasks()
+                .where((t) => !t.isCompleted)
+                .take(3)
+                .map((t) => t.copyWith(
+                    id: 'tomorrow_${t.id}',
+                    timeRemaining: '1 day left'
+                  )
+                ).toList(), 
+            "tomorrow"),
+        
+        // Add some padding at the bottom
+        SizedBox(height: 16.0),
+      ],
+    ),
+  );
+}
 
   // Helper method to build task sections
   Widget _buildTasksSection(List<Task> tasks, String section) {
@@ -980,128 +989,206 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // Due Task Item with section parameter
-  Widget _buildDueTaskItem(Task task, String section) {
-    final bool isTablet = ResponsiveUtils.isTablet(context);
-    final taskKey = _getTaskKey(task.id, section);
-    final bool isChecked = _checkedTasks[taskKey] ?? false;
-    final bool isUpdating = _updatingTasks.contains(taskKey);
-    
-    // Get time remaining from the map or use task's default value
-    final String timeRemaining = _taskTimeRemaining[taskKey] ?? task.timeRemaining;
-    
-    // Check if time remaining is critical (less than 1 hour or minutes left)
-    final bool isTimeWarning = TaskTimeUtils.isTimeUrgent(timeRemaining);
-    
-    // Check if user is HOD (should not be able to change task status)
-    final bool isHOD = _userRole == UserRole.hod;
+  // Due Task Item with section parameter and enhanced time remaining display for all roles
+Widget _buildDueTaskItem(Task task, String section) {
+  final bool isTablet = ResponsiveUtils.isTablet(context);
+  final taskKey = _getTaskKey(task.id, section);
+  final bool isChecked = _checkedTasks[taskKey] ?? false;
+  final bool isUpdating = _updatingTasks.contains(taskKey);
+  
+  // Get time remaining from the map or use task's default value
+  String timeRemaining = _taskTimeRemaining[taskKey] ?? task.timeRemaining;
+  
+  // If time remaining is still empty but task has a value, use it
+  if (timeRemaining.isEmpty && task.timeRemaining.isNotEmpty) {
+    timeRemaining = task.timeRemaining;
+  }
+  
+  // Check if time remaining is critical (less than 1 hour or minutes left)
+  final bool isTimeWarning = TaskTimeUtils.isTimeUrgent(timeRemaining);
+  
+  // Check if user is HOD (should not be able to change task status)
+  final bool isHOD = _userRole == UserRole.hod;
+  final bool isIncharge = _userRole == UserRole.shiftIncharge;
+  
+  // Extract hours from timeRemaining if it contains "hours"
+  String hoursValue = "";
+  if (timeRemaining.contains("hour")) {
+    final parts = timeRemaining.split(" ");
+    if (parts.length > 0) {
+      hoursValue = parts[0];
+    }
+  }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8), // Small gap between items
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3EFEE), // Light gray background
-        borderRadius: BorderRadius.circular(8),
+  return Container(
+    margin: const EdgeInsets.only(bottom: 8), // Small gap between items
+    decoration: BoxDecoration(
+      color: const Color(0xFFF3EFEE), // Light gray background
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: isTablet ? 16.0 : 12.0,
+        horizontal: isTablet ? 16.0 : 12.0,
       ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: isTablet ? 16.0 : 12.0,
-          horizontal: isTablet ? 16.0 : 12.0,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Checkbox or Loading indicator
-            GestureDetector(
-              onTap: isUpdating || isHOD
-                  ? null // Disable interaction while updating or for HOD users
-                  : () async {
-                      // Toggle the status and update the task
-                      await _updateTaskCompletion(task, section, !isChecked);
-                    },
-              child: Container(
-                margin: const EdgeInsets.only(right: 12, top: 2),
-                height: isTablet ? 28.0 : 24.0,
-                width: isTablet ? 28.0 : 24.0,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey[400]!),
-                  borderRadius: BorderRadius.circular(4),
-                  // Add a light gray overlay for HOD to indicate it's disabled
-                  boxShadow: isHOD ? [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      spreadRadius: 1,
-                      blurRadius: 1,
-                    )
-                  ] : null,
-                ),
-                child: isUpdating
-                    ? SizedBox(
-                        height: isTablet ? 20.0 : 16.0,
-                        width: isTablet ? 20.0 : 16.0,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.0,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.grey[400]!),
-                          ),
-                        ),
-                      )
-                    : isChecked
-                        ? Icon(
-                            Icons.check,
-                            color: isHOD ? Colors.grey[400] : Colors.grey[600],
-                            size: isTablet ? 20.0 : 16.0,
-                          )
-                        : null,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Checkbox or Loading indicator
+          GestureDetector(
+            onTap: isUpdating || isHOD
+                ? null // Disable interaction while updating or for HOD users
+                : () async {
+                    // Toggle the status and update the task
+                    await _updateTaskCompletion(task, section, !isChecked);
+                  },
+            child: Container(
+              margin: const EdgeInsets.only(right: 12, top: 2),
+              height: isTablet ? 28.0 : 24.0,
+              width: isTablet ? 28.0 : 24.0,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey[400]!),
+                borderRadius: BorderRadius.circular(4),
+                // Add a light gray overlay for HOD to indicate it's disabled
+                boxShadow: isHOD ? [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 1,
+                  )
+                ] : null,
               ),
+              child: isUpdating
+                  ? SizedBox(
+                      height: isTablet ? 20.0 : 16.0,
+                      width: isTablet ? 20.0 : 16.0,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.0,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.grey[400]!),
+                        ),
+                      ),
+                    )
+                  : isChecked
+                      ? Icon(
+                          Icons.check,
+                          color: isHOD ? Colors.grey[400] : Colors.grey[600],
+                          size: isTablet ? 20.0 : 16.0,
+                        )
+                      : null,
             ),
+          ),
 
-            // Task name and time remaining
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          // Task name and time remaining
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.name,
+                  style: TextStyle(
+                    fontSize: isTablet ? 18.0 : 16.0,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                
+                // Enhanced time remaining display for shift incharge
+                // if (timeRemaining.isNotEmpty && isIncharge)
+                //   Container(
+                //     margin: const EdgeInsets.only(top: 4, bottom: 4),
+                //     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                //     decoration: BoxDecoration(
+                //       color: isTimeWarning 
+                //           ? const Color(0xFFFFEBEE) // Light red background for urgent tasks
+                //           : const Color(0xFFE8F5E9), // Light green background for non-urgent tasks
+                //       borderRadius: BorderRadius.circular(12),
+                //       border: Border.all(
+                //         color: isTimeWarning
+                //             ? const Color(0xFFE53935) // Red border for urgent tasks
+                //             : const Color(0xFF81C784), // Green border for non-urgent tasks
+                //       ),
+                //     ),
+                //     child: Row(
+                //       mainAxisSize: MainAxisSize.min,
+                //       children: [
+                //         Icon(
+                //           isTimeWarning ? Icons.access_time_filled : Icons.access_time,
+                //           size: isTablet ? 18.0 : 14.0,
+                //           color: isTimeWarning
+                //               ? const Color(0xFFE53935)
+                //               : const Color(0xFF388E3C),
+                //         ),
+                //         const SizedBox(width: 4),
+                //         Text(
+                //           timeRemaining,
+                //           style: TextStyle(
+                //             fontSize: isTablet ? 14.0 : 12.0,
+                //             fontWeight: FontWeight.bold,
+                //             color: isTimeWarning
+                //                 ? const Color(0xFFE53935)
+                //                 : const Color(0xFF388E3C),
+                //           ),
+                //         ),
+                        
+                //         // Show numeric hours badge for clearer visibility if hours present
+                //         if (hoursValue.isNotEmpty && !isTimeWarning)
+                //           Container(
+                //             margin: const EdgeInsets.only(left: 6),
+                //             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                //             decoration: BoxDecoration(
+                //               color: const Color(0xFF388E3C),
+                //               borderRadius: BorderRadius.circular(10),
+                //             ),
+                //             child: Text(
+                //               hoursValue,
+                //               style: TextStyle(
+                //                 fontSize: isTablet ? 12.0 : 10.0,
+                //                 fontWeight: FontWeight.bold,
+                //                 color: Colors.white,
+                //               ),
+                //             ),
+                //           ),
+                //       ],
+                //     ),
+                //   )
+                // // Regular time remaining display for HOD and other roles
+                // else if (timeRemaining.isNotEmpty)
                   Text(
-                    task.name,
+                    timeRemaining,
                     style: TextStyle(
-                      fontSize: isTablet ? 18.0 : 16.0,
-                      fontWeight: FontWeight.w500,
+                      fontSize: isTablet ? 16.0 : 14.0,
+                      color: isTimeWarning
+                          ? const Color(0xFFE53935)
+                          : Colors.grey[600],
+                      fontWeight:
+                          isTimeWarning ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  if (timeRemaining.isNotEmpty)
-                    Text(
-                      timeRemaining,
+                  
+                // Add specification range display
+                if (task.specificationRange.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text(
+                      'Spec: ${task.specificationRange}',
                       style: TextStyle(
-                        fontSize: isTablet ? 16.0 : 14.0,
-                        color: isTimeWarning
-                            ? const Color(0xFFE53935)
-                            : Colors.grey[600],
-                        fontWeight:
-                            isTimeWarning ? FontWeight.bold : FontWeight.normal,
+                        fontSize: isTablet ? 14.0 : 12.0,
+                        color: Colors.grey[700],
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
-                  // Add specification range display
-                  if (task.specificationRange.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        'Spec: ${task.specificationRange}',
-                        style: TextStyle(
-                          fontSize: isTablet ? 14.0 : 12.0,
-                          color: Colors.grey[700],
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+                  ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // Operational Completed Tasks
   Widget _buildOperationalCompletedTasksView() {

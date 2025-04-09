@@ -7,164 +7,171 @@ import 'auth_service.dart';
 class TaskService {
   static const String _baseUrl = "https://vishakha.roblinx.com/api";
   
-  static Future<Map<String, List<Task>>> fetchOperationalTasks() async {
-    try {
-      final url = Uri.parse('$_baseUrl/shift-incharge-tasks');
-      
-      // Get the auth token from AuthService
-      final authToken = AuthService.authToken;
-      if (authToken == null) {
-        throw Exception('Not authenticated');
-      }
-      
-      // Make the GET request with the auth token
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $authToken',
-          'Content-Type': 'application/json',
-        },
-      );
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        
-        if (responseData['status'] == true) {
-          final Map<String, List<Task>> result = {
-            'today': [],
-            'tomorrow': []
-          };
-          
-          // Parse today's tasks
-          if (responseData.containsKey('today_tasks')) {
-            final List<dynamic> todayTasksJson = responseData['today_tasks'];
-            result['today'] = todayTasksJson.map((taskJson) {
-              return Task(
-                id: taskJson['task_id'].toString(),
-                name: taskJson['check_points'],
-                category: taskJson['equipment'],
-                isCompleted: taskJson['completed'] == 0,
-                specificationRange: taskJson['specification_range'],
-                isRange: taskJson['is_range'] == 0,
-                completedAt: taskJson['completed_at'],
-                timeRemaining: ''
-              );
-            }).toList();
-          }
-          
-          // Parse tomorrow's tasks
-          if (responseData.containsKey('tomorrow_tasks')) {
-            final List<dynamic> tomorrowTasksJson = responseData['tomorrow_tasks'];
-            result['tomorrow'] = tomorrowTasksJson.map((taskJson) {
-              return Task(
-                id: taskJson['task_id'].toString(),
-                name: taskJson['check_points'],
-                category: taskJson['equipment'],
-                isCompleted: taskJson['completed'] == 0,
-                specificationRange: taskJson['specification_range'],
-                isRange: taskJson['is_range'] == 0,
-                completedAt: taskJson['completed_at'],
-                timeRemaining: ''
-              );
-            }).toList();
-          }
-          
-          return result;
-        } else {
-          throw Exception(responseData['message'] ?? 'Failed to load tasks');
-        }
-      } else {
-        throw Exception('Failed to load tasks: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching operational tasks: $e');
-      // Return empty lists in case of error
-      return {
-        'today': [],
-        'tomorrow': []
-      };
+  // In lib/services/task_service.dart - fix parsing of isCompleted property
+// In fetchOperationalTasks method, change the Task creation to:
+
+static Future<Map<String, List<Task>>> fetchOperationalTasks() async {
+  try {
+    final url = Uri.parse('$_baseUrl/shift-incharge-tasks');
+    
+    // Get the auth token from AuthService
+    final authToken = AuthService.authToken;
+    if (authToken == null) {
+      throw Exception('Not authenticated');
     }
+    
+    // Make the GET request with the auth token
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $authToken',
+        'Content-Type': 'application/json',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = json.decode(response.body);
+      
+      if (responseData['status'] == true) {
+        final Map<String, List<Task>> result = {
+          'today': [],
+          'tomorrow': []
+        };
+        
+        // Parse today's tasks
+        if (responseData.containsKey('today_tasks')) {
+          final List<dynamic> todayTasksJson = responseData['today_tasks'];
+          result['today'] = todayTasksJson.map((taskJson) {
+            return Task(
+              id: taskJson['task_id'].toString(),
+              name: taskJson['check_points'],
+              category: taskJson['equipment'],
+              // Fix completion status parsing - in API 1 means completed
+              isCompleted: taskJson['completed'] == 1,
+              specificationRange: taskJson['specification_range'] ?? '',
+              isRange: taskJson['is_range'] == 1,
+              completedAt: taskJson['completed_at'],
+              timeRemaining: ''
+            );
+          }).toList();
+        }
+        
+        // Parse tomorrow's tasks
+        if (responseData.containsKey('tomorrow_tasks')) {
+          final List<dynamic> tomorrowTasksJson = responseData['tomorrow_tasks'];
+          result['tomorrow'] = tomorrowTasksJson.map((taskJson) {
+            return Task(
+              id: taskJson['task_id'].toString(),
+              name: taskJson['check_points'],
+              category: taskJson['equipment'],
+              // Fix completion status parsing - in API 1 means completed
+              isCompleted: taskJson['completed'] == 1,
+              specificationRange: taskJson['specification_range'] ?? '',
+              isRange: taskJson['is_range'] == 1,
+              completedAt: taskJson['completed_at'],
+              timeRemaining: ''
+            );
+          }).toList();
+        }
+        
+        return result;
+      } else {
+        throw Exception(responseData['message'] ?? 'Failed to load tasks');
+      }
+    } else {
+      throw Exception('Failed to load tasks: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error fetching operational tasks: $e');
+    // Return empty lists in case of error
+    return {
+      'today': [],
+      'tomorrow': []
+    };
   }
+}
   
   // New method to fetch HOD tasks
   static Future<Map<String, List<Task>>> fetchHODTasks() async {
-    try {
-      final url = Uri.parse('$_baseUrl/hod-tasks');
-      
-      // Get the auth token from AuthService
-      final authToken = AuthService.authToken;
-      if (authToken == null) {
-        throw Exception('Not authenticated');
-      }
-      
-      // Make the GET request with the auth token
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $authToken',
-          'Content-Type': 'application/json',
-        },
-      );
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        
-        if (responseData['status'] == true) {
-          final Map<String, List<Task>> result = {
-            'today': [],
-            'tomorrow': []
-          };
-          
-          // Parse today's tasks
-          if (responseData.containsKey('today_tasks')) {
-            final List<dynamic> todayTasksJson = responseData['today_tasks'];
-            result['today'] = todayTasksJson.map((taskJson) {
-              return Task(
-                id: taskJson['task_id'].toString(),
-                name: taskJson['check_points'],
-                category: taskJson['equipment'],
-                isCompleted: taskJson['completed'] == 0,
-                specificationRange: taskJson['specification_range'] ?? '',
-                isRange: taskJson['is_range'] == 0,
-                completedAt: taskJson['completed_at'],
-                timeRemaining: ''
-              );
-            }).toList();
-          }
-          
-          // Parse tomorrow's tasks
-          if (responseData.containsKey('tomorrow_tasks')) {
-            final List<dynamic> tomorrowTasksJson = responseData['tomorrow_tasks'];
-            result['tomorrow'] = tomorrowTasksJson.map((taskJson) {
-              return Task(
-                id: taskJson['task_id'].toString(),
-                name: taskJson['check_points'],
-                category: taskJson['equipment'],
-                isCompleted: taskJson['completed'] == 0,
-                specificationRange: taskJson['specification_range'] ?? '',
-                isRange: taskJson['is_range'] == 0,
-                completedAt: taskJson['completed_at'],
-                timeRemaining: ''
-              );
-            }).toList();
-          }
-          
-          return result;
-        } else {
-          throw Exception(responseData['message'] ?? 'Failed to load tasks');
-        }
-      } else {
-        throw Exception('Failed to load HOD tasks: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching HOD tasks: $e');
-      // Return empty lists in case of error
-      return {
-        'today': [],
-        'tomorrow': []
-      };
+  try {
+    final url = Uri.parse('$_baseUrl/hod-tasks');
+    
+    // Get the auth token from AuthService
+    final authToken = AuthService.authToken;
+    if (authToken == null) {
+      throw Exception('Not authenticated');
     }
+    
+    // Make the GET request with the auth token
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $authToken',
+        'Content-Type': 'application/json',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = json.decode(response.body);
+      
+      if (responseData['status'] == true) {
+        final Map<String, List<Task>> result = {
+          'today': [],
+          'tomorrow': []
+        };
+        
+        // Parse today's tasks
+        if (responseData.containsKey('today_tasks')) {
+          final List<dynamic> todayTasksJson = responseData['today_tasks'];
+          result['today'] = todayTasksJson.map((taskJson) {
+            return Task(
+              id: taskJson['task_id'].toString(),
+              name: taskJson['check_points'],
+              category: taskJson['equipment'],
+              // Fix completion status parsing - in API 1 means completed
+              isCompleted: taskJson['completed'] == 1,
+              specificationRange: taskJson['specification_range'] ?? '',
+              isRange: taskJson['is_range'] == 1,
+              completedAt: taskJson['completed_at'],
+              timeRemaining: ''
+            );
+          }).toList();
+        }
+        
+        // Parse tomorrow's tasks
+        if (responseData.containsKey('tomorrow_tasks')) {
+          final List<dynamic> tomorrowTasksJson = responseData['tomorrow_tasks'];
+          result['tomorrow'] = tomorrowTasksJson.map((taskJson) {
+            return Task(
+              id: taskJson['task_id'].toString(),
+              name: taskJson['check_points'],
+              category: taskJson['equipment'],
+              // Fix completion status parsing - in API 1 means completed
+              isCompleted: taskJson['completed'] == 1,
+              specificationRange: taskJson['specification_range'] ?? '',
+              isRange: taskJson['is_range'] == 1,
+              completedAt: taskJson['completed_at'],
+              timeRemaining: ''
+            );
+          }).toList();
+        }
+        
+        return result;
+      } else {
+        throw Exception(responseData['message'] ?? 'Failed to load tasks');
+      }
+    } else {
+      throw Exception('Failed to load HOD tasks: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error fetching HOD tasks: $e');
+    // Return empty lists in case of error
+    return {
+      'today': [],
+      'tomorrow': []
+    };
   }
+}
   
   // Method to update task status
   static Future<bool> updateTaskStatus(String taskId, bool isCompleted) async {
