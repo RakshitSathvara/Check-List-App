@@ -299,4 +299,87 @@ static Future<Map<String, List<Task>>> fetchMaintenanceTasks() async {
     };
   }
 }
+
+// Fixed method to properly parse the HOD maintenance tasks API response
+
+// Method to fetch maintenance tasks for HOD
+static Future<Map<String, List<Task>>> fetchHODMaintenanceTasks() async {
+  try {
+    final url = Uri.parse('$_baseUrl/hod-maintenance-tasks');
+    
+    // Get the auth token from AuthService
+    final authToken = AuthService.authToken;
+    if (authToken == null) {
+      throw Exception('Not authenticated');
+    }
+    
+    // Make the GET request with the auth token
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $authToken',
+        'Content-Type': 'application/json',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = json.decode(response.body);
+      print('HOD Maintenance API response: ${response.body}'); // Debug log
+      
+      if (responseData['status'] == true) {
+        final Map<String, List<Task>> result = {
+          'today': [],
+          'tomorrow': []
+        };
+        
+        // Parse today's tasks - Note: they're directly at the top level as 'today_tasks', not under 'tasks'
+        if (responseData.containsKey('today_tasks')) {
+          final List<dynamic> todayTasksJson = responseData['today_tasks'];
+          result['today'] = todayTasksJson.map((taskJson) {
+            return Task(
+              id: taskJson['task_id'].toString(),
+              name: taskJson['activity_name'],
+              category: "Today's Preventive/Planned Maintenance",  // Group tasks under this category
+              timeRemaining: taskJson['frequency'] ?? '',
+              isCompleted: taskJson['completed'] == 1,
+              specificationRange: taskJson['Measurement'] ?? 'Visual',
+              isRange: false,
+              completedAt: taskJson['completed_at'],
+            );
+          }).toList();
+        }
+        
+        // Parse tomorrow's tasks - Also directly at the top level
+        if (responseData.containsKey('tomorrow_tasks')) {
+          final List<dynamic> tomorrowTasksJson = responseData['tomorrow_tasks'];
+          result['tomorrow'] = tomorrowTasksJson.map((taskJson) {
+            return Task(
+              id: taskJson['task_id'].toString(),
+              name: taskJson['activity_name'],
+              category: "Next Day's Preventive/Planned Maintenance",  // Group tasks under this category
+              timeRemaining: "1 day left",  // Always show as "1 day left" for tomorrow's tasks
+              isCompleted: taskJson['completed'] == 1,
+              specificationRange: taskJson['Measurement'] ?? 'Visual',
+              isRange: false,
+              completedAt: taskJson['completed_at'],
+            );
+          }).toList();
+        }
+        
+        return result;
+      } else {
+        throw Exception(responseData['message'] ?? 'Failed to load HOD maintenance tasks');
+      }
+    } else {
+      throw Exception('Failed to load HOD maintenance tasks: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error fetching HOD maintenance tasks: $e');
+    // Return empty lists in case of error
+    return {
+      'today': [],
+      'tomorrow': []
+    };
+  }
+}
 }

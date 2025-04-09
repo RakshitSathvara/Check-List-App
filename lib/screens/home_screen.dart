@@ -365,21 +365,37 @@ class _HomeScreenState extends State<HomeScreen>
   }
   
   // Fetch maintenance tasks from the API
-  Future<void> _fetchMaintenanceTasks() async {
-    setState(() {
-      _isMaintenanceLoading = true;
-      _isAnyOperationInProgress = true; // Set global loading state
-      _errorMessage = null;
-    });
+  // Enhanced method with better error handling and debugging
+
+// Fetch maintenance tasks based on user role
+Future<void> _fetchMaintenanceTasks() async {
+  setState(() {
+    _isMaintenanceLoading = true;
+    _isAnyOperationInProgress = true; // Set global loading state
+    _errorMessage = null;
+  });
+  
+  try {
+    print('Fetching maintenance tasks for user role: ${_userRole}');
     
-    try {
-      final tasksMap = await TaskService.fetchMaintenanceTasks();
-      
-      List<Task> todayTasks = [];
-      List<Task> tomorrowTasks = [];
-      List<Task> completedTasks = [];
-      
-      // Process today's tasks - separate completed from due tasks
+    // Call the appropriate API based on user role
+    final Map<String, List<Task>> tasksMap;
+    if (_userRole == UserRole.hod) {
+      print('Calling HOD Maintenance API');
+      tasksMap = await TaskService.fetchHODMaintenanceTasks();
+    } else {
+      print('Calling Shift Incharge Maintenance API');
+      tasksMap = await TaskService.fetchMaintenanceTasks();
+    }
+    
+    print('Tasks received - Today: ${tasksMap['today']?.length ?? 0}, Tomorrow: ${tasksMap['tomorrow']?.length ?? 0}');
+    
+    List<Task> todayTasks = [];
+    List<Task> tomorrowTasks = [];
+    List<Task> completedTasks = [];
+    
+    // Process today's tasks - separate completed from due tasks
+    if (tasksMap['today'] != null && tasksMap['today']!.isNotEmpty) {
       for (var task in tasksMap['today']!) {
         final key = _getTaskKey(task.id, 'maintenance_today');
         _checkedTasks[key] = task.isCompleted;
@@ -395,13 +411,19 @@ class _HomeScreenState extends State<HomeScreen>
         if (task.isCompleted) {
           // Add to completed tasks list
           completedTasks.add(task);
+          print('Adding completed task: ${task.name}');
         } else {
           // Add to today's tasks list
           todayTasks.add(task);
+          print('Adding today\'s task: ${task.name}');
         }
       }
-      
-      // Process tomorrow's tasks - separate completed from due tasks
+    } else {
+      print('No today tasks found in response');
+    }
+    
+    // Process tomorrow's tasks - separate completed from due tasks
+    if (tasksMap['tomorrow'] != null && tasksMap['tomorrow']!.isNotEmpty) {
       for (var task in tasksMap['tomorrow']!) {
         final key = _getTaskKey(task.id, 'maintenance_tomorrow');
         _checkedTasks[key] = task.isCompleted;
@@ -412,27 +434,36 @@ class _HomeScreenState extends State<HomeScreen>
         if (task.isCompleted) {
           // Add to completed tasks list
           completedTasks.add(task);
+          print('Adding completed task (tomorrow): ${task.name}');
         } else {
           // Add to tomorrow's tasks list
           tomorrowTasks.add(task);
+          print('Adding tomorrow\'s task: ${task.name}');
         }
       }
-      
-      setState(() {
-        _todayMaintenanceTasks = todayTasks;
-        _tomorrowMaintenanceTasks = tomorrowTasks;
-        _completedMaintenanceTasks = completedTasks; // Store completed tasks separately
-        _isMaintenanceLoading = false;
-        _isAnyOperationInProgress = false; // Clear global loading state
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load maintenance tasks: $e';
-        _isMaintenanceLoading = false;
-        _isAnyOperationInProgress = false; // Clear global loading state
-      });
+    } else {
+      print('No tomorrow tasks found in response');
     }
+    
+    print('Processed tasks - Today: ${todayTasks.length}, Tomorrow: ${tomorrowTasks.length}, Completed: ${completedTasks.length}');
+    
+    setState(() {
+      _todayMaintenanceTasks = todayTasks;
+      _tomorrowMaintenanceTasks = tomorrowTasks;
+      _completedMaintenanceTasks = completedTasks; // Store completed tasks separately
+      _isMaintenanceLoading = false;
+      _isAnyOperationInProgress = false; // Clear global loading state
+      print('State updated with maintenance tasks');
+    });
+  } catch (e) {
+    print('Error in _fetchMaintenanceTasks: $e');
+    setState(() {
+      _errorMessage = 'Failed to load maintenance tasks: $e';
+      _isMaintenanceLoading = false;
+      _isAnyOperationInProgress = false; // Clear global loading state
+    });
   }
+}
 
   // When a task is marked as complete, move it to the completed tasks list
   Future<void> _updateTaskCompletion(Task task, String section, bool isCompleted) async {
