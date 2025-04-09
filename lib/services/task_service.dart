@@ -43,11 +43,11 @@ class TaskService {
                 id: taskJson['task_id'].toString(),
                 name: taskJson['check_points'],
                 category: taskJson['equipment'],
-                timeRemaining: '', // No time remaining info in API
-                isCompleted: taskJson['completed'] == 1,
+                isCompleted: taskJson['completed'] == 0,
                 specificationRange: taskJson['specification_range'],
-                isRange: taskJson['is_range'] == 1,
+                isRange: taskJson['is_range'] == 0,
                 completedAt: taskJson['completed_at'],
+                timeRemaining: ''
               );
             }).toList();
           }
@@ -60,11 +60,11 @@ class TaskService {
                 id: taskJson['task_id'].toString(),
                 name: taskJson['check_points'],
                 category: taskJson['equipment'],
-                timeRemaining: '', // No time remaining info in API
-                isCompleted: taskJson['completed'] == 1,
+                isCompleted: taskJson['completed'] == 0,
                 specificationRange: taskJson['specification_range'],
-                isRange: taskJson['is_range'] == 1,
+                isRange: taskJson['is_range'] == 0,
                 completedAt: taskJson['completed_at'],
+                timeRemaining: ''
               );
             }).toList();
           }
@@ -123,11 +123,11 @@ class TaskService {
                 id: taskJson['task_id'].toString(),
                 name: taskJson['check_points'],
                 category: taskJson['equipment'],
-                timeRemaining: '', // No time remaining info in API
-                isCompleted: taskJson['completed'] == 1,
+                isCompleted: taskJson['completed'] == 0,
                 specificationRange: taskJson['specification_range'] ?? '',
-                isRange: taskJson['is_range'] == 1,
+                isRange: taskJson['is_range'] == 0,
                 completedAt: taskJson['completed_at'],
+                timeRemaining: ''
               );
             }).toList();
           }
@@ -140,11 +140,11 @@ class TaskService {
                 id: taskJson['task_id'].toString(),
                 name: taskJson['check_points'],
                 category: taskJson['equipment'],
-                timeRemaining: '', // No time remaining info in API
-                isCompleted: taskJson['completed'] == 1,
+                isCompleted: taskJson['completed'] == 0,
                 specificationRange: taskJson['specification_range'] ?? '',
-                isRange: taskJson['is_range'] == 1,
+                isRange: taskJson['is_range'] == 0,
                 completedAt: taskJson['completed_at'],
+                timeRemaining: ''
               );
             }).toList();
           }
