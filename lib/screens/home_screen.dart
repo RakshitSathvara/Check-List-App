@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isMaintenanceLoading =
       false; // Separate loading state for maintenance tasks
 
-      final TextEditingController textController = TextEditingController();
+  final TextEditingController textController = TextEditingController();
 
   @override
   void initState() {
@@ -480,144 +480,156 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-// Updated _updateTaskCompletion method in home_screen.dart
-// Update the _updateTaskCompletion method to handle both range and non-range tasks
-Future<void> _updateTaskCompletion(Task task, String section, bool isCompleted, BuildContext context) async {
-  final taskKey = _getTaskKey(task.id, section);
-  
-  // Only show dialogs when marking as complete (not when unchecking)
-  if (isCompleted && _userRole == UserRole.shiftIncharge) {
-    String? userInput;
-    
-    if (task.isRange) {
-      // For range tasks, show numeric input dialog
-      userInput = await _showNumericInputDialog(task, context);
-    } else {
-      // For non-range tasks, show remarks input dialog
-      userInput = await _showRemarksDialog(task, context);
+  Future<void> _updateTaskCompletion(
+      Task task, String section, bool isCompleted, BuildContext context) async {
+    final taskKey = _getTaskKey(task.id, section);
+
+    // Only show dialogs when marking as complete (not when unchecking) and for shift incharge
+    if (isCompleted && _userRole == UserRole.shiftIncharge) {
+      String? userInput;
+
+      // Check if it's a maintenance task
+      bool isMaintenanceTask = section.startsWith('maintenance');
+
+      if (task.isRange) {
+        // For range tasks, show numeric input dialog
+        userInput = await _showNumericInputDialog(task, context);
+      } else {
+        // For non-range tasks, show remarks dialog
+        userInput = await _showRemarksDialog(task, context);
+      }
+
+      // If user cancels, don't proceed
+      if (userInput == null) {
+        return;
+      }
+
+      // If we reached here, user entered a value and clicked Submit
+      // Continue with task completion
     }
-    
-    // If user cancels, don't proceed
-    if (userInput == null) {
-      return;
-    }
-    
-    // If we reached here, user entered a value and clicked Submit
-    // Continue with task completion
-  }
-  
-  // Start updating - show loaders
-  setState(() {
-    _updatingTasks.add(taskKey);
-    _isAnyOperationInProgress = true; // Set global loading state
-  });
-  
-  try {
-    // Call the API to update the task status
-    final success = await TaskService.updateTaskStatus(task.id, isCompleted);
-    
-    if (success) {
-      setState(() {
-        _checkedTasks[taskKey] = isCompleted;
-        
-        // Handle task movement between due and completed tasks
-        if (isCompleted) {
-          // Remove from the due tasks list and add to completed tasks
-          if (section == 'today') {
-            _todayOperationalTasks.removeWhere((t) => t.id == task.id);
-            final completedTask = task.copyWith(isCompleted: true);
-            _completedOperationalTasks.add(completedTask);
-          } else if (section == 'tomorrow') {
-            _tomorrowOperationalTasks.removeWhere((t) => t.id == task.id);
-            final completedTask = task.copyWith(isCompleted: true);
-            _completedOperationalTasks.add(completedTask);
-          } else if (section == 'maintenance_today') {
-            _todayMaintenanceTasks.removeWhere((t) => t.id == task.id);
-            final completedTask = task.copyWith(isCompleted: true);
-            _completedMaintenanceTasks.add(completedTask);
-          } else if (section == 'maintenance_tomorrow') {
-            _tomorrowMaintenanceTasks.removeWhere((t) => t.id == task.id);
-            final completedTask = task.copyWith(isCompleted: true);
-            _completedMaintenanceTasks.add(completedTask);
-          }
-          
-          // Show notification when task is checked
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Task "${task.name}" marked as completed'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        } else {
-          // Move task back to due tasks
-          final uncompletedTask = task.copyWith(isCompleted: false);
-          
-          if (section.startsWith('maintenance')) {
-            _completedMaintenanceTasks.removeWhere((t) => t.id == task.id);
-            
-            if (section == 'maintenance_today') {
-              _todayMaintenanceTasks.add(uncompletedTask);
-            } else if (section == 'maintenance_tomorrow') {
-              _tomorrowMaintenanceTasks.add(uncompletedTask);
-            }
-          } else {
-            _completedOperationalTasks.removeWhere((t) => t.id == task.id);
-            
+
+    // Start updating - show loaders
+    setState(() {
+      _updatingTasks.add(taskKey);
+      _isAnyOperationInProgress = true; // Set global loading state
+    });
+
+    try {
+      // Determine if it's a maintenance task and call the appropriate API
+      bool isMaintenanceTask = section.startsWith('maintenance');
+      bool success;
+
+      if (isMaintenanceTask) {
+        // Call maintenance-specific API
+        success =
+            await TaskService.updateMaintenanceTaskStatus(task.id, isCompleted);
+      } else {
+        // Call regular task API
+        success = await TaskService.updateTaskStatus(task.id, isCompleted);
+      }
+
+      if (success) {
+        setState(() {
+          _checkedTasks[taskKey] = isCompleted;
+
+          // Handle task movement between due and completed tasks
+          if (isCompleted) {
+            // Remove from the due tasks list and add to completed tasks
             if (section == 'today') {
-              _todayOperationalTasks.add(uncompletedTask);
+              _todayOperationalTasks.removeWhere((t) => t.id == task.id);
+              final completedTask = task.copyWith(isCompleted: true);
+              _completedOperationalTasks.add(completedTask);
             } else if (section == 'tomorrow') {
-              _tomorrowOperationalTasks.add(uncompletedTask);
+              _tomorrowOperationalTasks.removeWhere((t) => t.id == task.id);
+              final completedTask = task.copyWith(isCompleted: true);
+              _completedOperationalTasks.add(completedTask);
+            } else if (section == 'maintenance_today') {
+              _todayMaintenanceTasks.removeWhere((t) => t.id == task.id);
+              final completedTask = task.copyWith(isCompleted: true);
+              _completedMaintenanceTasks.add(completedTask);
+            } else if (section == 'maintenance_tomorrow') {
+              _tomorrowMaintenanceTasks.removeWhere((t) => t.id == task.id);
+              final completedTask = task.copyWith(isCompleted: true);
+              _completedMaintenanceTasks.add(completedTask);
+            }
+
+            // Show notification when task is checked
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Task "${task.name}" marked as completed'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          } else {
+            // Move task back to due tasks
+            final uncompletedTask = task.copyWith(isCompleted: false);
+
+            if (section.startsWith('maintenance')) {
+              _completedMaintenanceTasks.removeWhere((t) => t.id == task.id);
+
+              if (section == 'maintenance_today') {
+                _todayMaintenanceTasks.add(uncompletedTask);
+              } else if (section == 'maintenance_tomorrow') {
+                _tomorrowMaintenanceTasks.add(uncompletedTask);
+              }
+            } else {
+              _completedOperationalTasks.removeWhere((t) => t.id == task.id);
+
+              if (section == 'today') {
+                _todayOperationalTasks.add(uncompletedTask);
+              } else if (section == 'tomorrow') {
+                _tomorrowOperationalTasks.add(uncompletedTask);
+              }
             }
           }
-        }
-      });
-    } else {
-      // Show error message
+        });
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update task status. Please try again.'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error message for exceptions
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to update task status. Please try again.'),
+          content: Text('Error updating task: ${e.toString()}'),
           duration: const Duration(seconds: 2),
           backgroundColor: Colors.red,
         ),
       );
-    }
-  } catch (e) {
-    // Show error message for exceptions
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error updating task: ${e.toString()}'),
-        duration: const Duration(seconds: 2),
-        backgroundColor: Colors.red,
-      ),
-    );
-  } finally {
-    // Stop updating - hide loaders
-    if (mounted) {
-      setState(() {
-        _updatingTasks.remove(taskKey);
-        // Only clear global loading if no tasks are being updated
-        if (_updatingTasks.isEmpty) {
-          _isAnyOperationInProgress = false;
-        }
-      });
+    } finally {
+      // Stop updating - hide loaders
+      if (mounted) {
+        setState(() {
+          _updatingTasks.remove(taskKey);
+          // Only clear global loading if no tasks are being updated
+          if (_updatingTasks.isEmpty) {
+            _isAnyOperationInProgress = false;
+          }
+        });
+      }
     }
   }
-}
 
 // New method for showing remarks dialog for non-range tasks
-Future<String?> _showRemarksDialog(Task task, BuildContext context) async {
-  final bool isTablet = ResponsiveUtils.isTablet(context);
-  
-  try {
-    // Show dialog and wait for result
-    final result = await showDialog<String?>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        // Create controller inside the builder to keep it in the dialog's scope
-      final TextEditingController remarksController = TextEditingController();  
-        return StatefulBuilder(
-          builder: (context, setState) {
+  Future<String?> _showRemarksDialog(Task task, BuildContext context) async {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
+
+    try {
+      // Show dialog and wait for result
+      final result = await showDialog<String?>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          // Create controller inside the builder to keep it in the dialog's scope
+          final TextEditingController remarksController =
+              TextEditingController();
+          return StatefulBuilder(builder: (context, setState) {
             return AlertDialog(
               title: Text(
                 'Add Remarks',
@@ -693,138 +705,229 @@ Future<String?> _showRemarksDialog(Task task, BuildContext context) async {
                 ),
               ],
             );
-          }
-        );
-      },
-    );
-    
-    return result; // This will be null if canceled, or the remarks text if submitted
-  } catch (e) {
-    print('Error showing remarks dialog: $e');
-    return null;
-  }
-}
+          });
+        },
+      );
 
-// Add a new method to show the numeric input dialog
-Future<String?> _showNumericInputDialog(Task task, BuildContext context) async {
-  final bool isTablet = ResponsiveUtils.isTablet(context);  
-  // Extract min and max values from specification range if available
-  String rangeText = task.specificationRange;
-  String helperText = 'Enter measured value';
-  
-  if (rangeText.contains('to')) {
-    final parts = rangeText.split('to');
-    if (parts.length == 2) {
-      String min = parts[0].trim();
-      String max = parts[1].trim();
-      helperText = 'Valid range: $min to $max';
+      return result; // This will be null if canceled, or the remarks text if submitted
+    } catch (e) {
+      print('Error showing remarks dialog: $e');
+      return null;
     }
   }
-  
-  // Use a different approach to return the dialog result
-  try {
-    final result = await showDialog<String?>(
+
+// Method to show Line Selection Dialog
+  void _showLineSelectionDialog() {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
+    String selectedLine = 'Line-1'; // Default selection
+
+    showDialog(
       context: context,
-      barrierDismissible: false, // User must tap a button to close the dialog
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text(
-            'Enter Measurement',
-            style: TextStyle(
-              fontSize: isTablet ? 20.0 : 18.0,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                task.name,
-                style: TextStyle(
-                  fontSize: isTablet ? 16.0 : 14.0,
-                  fontWeight: FontWeight.w500,
-                ),
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: Text(
+              'Select Line',
+              style: TextStyle(
+                fontSize: isTablet ? 20.0 : 18.0,
+                fontWeight: FontWeight.bold,
               ),
-              SizedBox(height: 8),
-              if (rangeText.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: Text(
-                    'Specification: $rangeText',
-                    style: TextStyle(
-                      fontSize: isTablet ? 14.0 : 12.0,
-                      color: Colors.grey[700],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: selectedLine,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
                     ),
                   ),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        selectedLine = newValue;
+                      });
+                    }
+                  },
+                  items: [
+                    'Line-1',
+                    'Line-2',
+                    'Line-3',
+                    'Line-4',
+                  ].map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
                 ),
-              TextField(
-                controller: textController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: 'Measured Value',
-                  helperText: helperText,
-                  border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop(); // Cancel
+                },
+                child: Text(
+                  'CANCEL',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: isTablet ? 16.0 : 14.0,
                   ),
                 ),
-                // Input validation - only allow numbers and decimal point
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
-                ],
-                autofocus: true,
-                onSubmitted: (value) {
-                  // Allow pressing Enter to submit
-                  if (value.isNotEmpty) {
-                    Navigator.of(context).pop(value);
-                  }
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  // You can use selectedLine value here for further processing if needed
+                  print('Selected Line: $selectedLine');
+                  Navigator.of(dialogContext).pop(); // Submit and close
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                ),
+                child: Text(
+                  'SUBMIT',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isTablet ? 16.0 : 14.0,
+                  ),
+                ),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(null); // Return null for cancel
-              },
-              child: Text(
-                'CANCEL',
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: isTablet ? 16.0 : 14.0,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final value = textController.text;
-                if (value.isNotEmpty) {
-                  Navigator.of(context).pop(value); // Return the input value
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
-              child: Text(
-                'SUBMIT',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isTablet ? 16.0 : 14.0,
-                ),
-              ),
-            ),
-          ],
-        );
+          );
+        });
       },
     );
-    
-    return result; // This will be null if canceled or the input value if submitted
-  } finally {
-    // Ensure controller is disposed
-    
   }
-}
+
+// Add a new method to show the numeric input dialog
+  Future<String?> _showNumericInputDialog(
+      Task task, BuildContext context) async {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
+    // Extract min and max values from specification range if available
+    String rangeText = task.specificationRange;
+    String helperText = 'Enter measured value';
+
+    if (rangeText.contains('to')) {
+      final parts = rangeText.split('to');
+      if (parts.length == 2) {
+        String min = parts[0].trim();
+        String max = parts[1].trim();
+        helperText = 'Valid range: $min to $max';
+      }
+    }
+
+    // Use a different approach to return the dialog result
+    try {
+      final result = await showDialog<String?>(
+        context: context,
+        barrierDismissible: false, // User must tap a button to close the dialog
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: Text(
+              'Enter Measurement',
+              style: TextStyle(
+                fontSize: isTablet ? 20.0 : 18.0,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  task.name,
+                  style: TextStyle(
+                    fontSize: isTablet ? 16.0 : 14.0,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 8),
+                if (rangeText.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: Text(
+                      'Specification: $rangeText',
+                      style: TextStyle(
+                        fontSize: isTablet ? 14.0 : 12.0,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                TextField(
+                  controller: textController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'Measured Value',
+                    helperText: helperText,
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                  // Input validation - only allow numbers and decimal point
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
+                  ],
+                  autofocus: true,
+                  onSubmitted: (value) {
+                    // Allow pressing Enter to submit
+                    if (value.isNotEmpty) {
+                      Navigator.of(context).pop(value);
+                    }
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(null); // Return null for cancel
+                },
+                child: Text(
+                  'CANCEL',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: isTablet ? 16.0 : 14.0,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final value = textController.text;
+                  if (value.isNotEmpty) {
+                    Navigator.of(context).pop(value); // Return the input value
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                ),
+                child: Text(
+                  'SUBMIT',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isTablet ? 16.0 : 14.0,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      return result; // This will be null if canceled or the input value if submitted
+    } finally {
+      // Ensure controller is disposed
+    }
+  }
+
   @override
   void dispose() {
     _tabController.removeListener(_onTabChanged);
@@ -1088,7 +1191,6 @@ Future<String?> _showNumericInputDialog(Task task, BuildContext context) async {
         ),
       ),
     );
-    
   }
 
   Widget _buildAppBar() {
@@ -1114,7 +1216,9 @@ Future<String?> _showNumericInputDialog(Task task, BuildContext context) async {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Menu Icon
-          Icon(Icons.menu, size: isTablet ? 28.0 : 24.0),
+          GestureDetector(
+              onTap: _showLineSelectionDialog,
+              child: Icon(Icons.menu, size: isTablet ? 28.0 : 24.0)),
 
           // Page Title with Department and Shift
           Column(
@@ -1310,7 +1414,10 @@ Future<String?> _showNumericInputDialog(Task task, BuildContext context) async {
                       ),
                     ),
                   )
-                : _buildTasksSection(_todayOperationalTasks, "today",),
+                : _buildTasksSection(
+                    _todayOperationalTasks,
+                    "today",
+                  ),
 
             // TOMORROW SECTION
             Padding(
@@ -1478,7 +1585,8 @@ Future<String?> _showNumericInputDialog(Task task, BuildContext context) async {
                   ? null // Disable interaction while updating, for HOD users, or for tomorrow tasks
                   : () async {
                       // Toggle the status and update the task
-                      await _updateTaskCompletion(task, section, !isChecked,context);
+                      await _updateTaskCompletion(
+                          task, section, !isChecked, context);
                     },
               child: Container(
                 margin: const EdgeInsets.only(right: 12, top: 2),
