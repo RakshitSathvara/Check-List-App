@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/dummy_data.dart';
 import '../models/task.dart';
 import '../models/user.dart';
@@ -25,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen>
   late String _shiftTimingDisplay = "";
   late String _userName = "User";
   late UserRole _userRole = UserRole.shiftIncharge;
-  
+
   // Timer for updating time remaining
   Timer? _timeUpdateTimer;
   DateTime _currentTime = DateTime.now();
@@ -34,39 +35,42 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Map to keep track of checked tasks with section-specific keys
   final Map<String, bool> _checkedTasks = {};
-  
+
   // Map to store calculated time remaining for tasks
   final Map<String, String> _taskTimeRemaining = {};
-  
+
   // Set to track which tasks are currently being updated
   final Set<String> _updatingTasks = {};
-  
+
   // State for API tasks - Operational
   List<Task> _todayOperationalTasks = [];
   List<Task> _tomorrowOperationalTasks = [];
-  List<Task> _completedOperationalTasks = []; 
+  List<Task> _completedOperationalTasks = [];
   bool _isLoading = false;
   bool _isAnyOperationInProgress = false; // Track any ongoing operation
   String? _errorMessage;
-  
+
   // State for API tasks - Maintenance
   List<Task> _todayMaintenanceTasks = [];
   List<Task> _tomorrowMaintenanceTasks = [];
   List<Task> _completedMaintenanceTasks = []; // For completed maintenance tasks
-  bool _isMaintenanceLoading = false; // Separate loading state for maintenance tasks
+  bool _isMaintenanceLoading =
+      false; // Separate loading state for maintenance tasks
+
+      final TextEditingController textController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
+
     // Set current time and update date time display
     _currentTime = DateTime.now();
     _updateDateTime();
-    
+
     // Set user information from auth service
     _loadUserInfo();
-    
+
     // Listen to tab changes
     _tabController.addListener(_onTabChanged);
 
@@ -75,53 +79,52 @@ class _HomeScreenState extends State<HomeScreen>
     for (var task in operationalTasks) {
       _checkedTasks[_getTaskKey(task.id, "today")] = task.isCompleted;
     }
-    
+
     // Start timer to update time remaining calculations
     _startTimeUpdateTimer();
-    
+
     // Fetch tasks based on user role when the screen loads
     _fetchTasksBasedOnRole();
   }
-  
+
   void _loadUserInfo() {
     final user = AuthService.currentUser;
     final shift = AuthService.currentShift;
-    
+
     if (user != null) {
       setState(() {
         _userName = user.name;
         _userRole = user.role;
-        _departmentName = user.department.isEmpty ? "Department" : user.department;
+        _departmentName =
+            user.department.isEmpty ? "Department" : user.department;
       });
     }
-    
+
     if (shift != null) {
       setState(() {
         // Use shift information from login response
         final shiftName = shift['name'] as String? ?? "Shift";
         final shortName = shift['shortName'] as String? ?? "";
         _shiftName = "$shiftName ${shortName.isNotEmpty ? '- $shortName' : ''}";
-        
+
         // Store shift timing for time remaining calculations
         _shiftStartTime = shift['start_time'] as String?;
         _shiftEndTime = shift['end_time'] as String?;
-        
+
         // Format shift timing for display
         if (_shiftStartTime != null && _shiftEndTime != null) {
           _shiftTimingDisplay = TaskTimeUtils.getShiftTimingDisplay(
-            _shiftStartTime!,
-            _shiftEndTime!
-          );
+              _shiftStartTime!, _shiftEndTime!);
         }
       });
     }
   }
-  
+
   // Start timer to update time remaining periodically
   void _startTimeUpdateTimer() {
     // Cancel existing timer if it exists
     _timeUpdateTimer?.cancel();
-    
+
     // Update time every minute
     _timeUpdateTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
       setState(() {
@@ -132,82 +135,93 @@ class _HomeScreenState extends State<HomeScreen>
       });
     });
   }
-  
+
   // Update time remaining for all tasks based on current time
   void _updateTaskTimesRemaining() {
     if (_shiftEndTime == null) return;
-    
+
     // Clear the map first to avoid stale data
     _taskTimeRemaining.clear();
-    
+
     // Calculate time remaining for today's tasks from API
     for (var task in _todayOperationalTasks) {
       final key = _getTaskKey(task.id, 'today');
-      _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
-        _currentTime, 
-        _shiftEndTime!
-      );
+      _taskTimeRemaining[key] =
+          TaskTimeUtils.calculateTimeRemaining(_currentTime, _shiftEndTime!);
     }
-    
+
     // For tomorrow's tasks from API, set "1 day left"
     for (var task in _tomorrowOperationalTasks) {
       final key = _getTaskKey(task.id, 'tomorrow');
       _taskTimeRemaining[key] = "1 day left";
     }
-    
+
     // Calculate time remaining for today's maintenance tasks
     for (var task in _todayMaintenanceTasks) {
       final key = _getTaskKey(task.id, 'maintenance_today');
-      _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
-        _currentTime, 
-        _shiftEndTime!
-      );
+      _taskTimeRemaining[key] =
+          TaskTimeUtils.calculateTimeRemaining(_currentTime, _shiftEndTime!);
     }
-    
+
     // For tomorrow's maintenance tasks, set "1 day left"
     for (var task in _tomorrowMaintenanceTasks) {
       final key = _getTaskKey(task.id, 'maintenance_tomorrow');
       _taskTimeRemaining[key] = "1 day left";
     }
   }
-  
+
   // Helper method to generate a unique key for each task
   String _getTaskKey(String taskId, String section) {
     return "$section:$taskId";
   }
-  
+
   void _updateDateTime() {
     final now = _currentTime;
-    
+
     // Get the day with suffix (1st, 2nd, 3rd, etc.)
     final int day = now.day;
     final String daySuffix = _getDaySuffix(day);
-    
+
     // Format the date as "8th April 2025 05:40"
-    _currentDateTime = '$day$daySuffix ${_getMonthName(now.month)} ${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    _currentDateTime =
+        '$day$daySuffix ${_getMonthName(now.month)} ${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
   }
 
   String _getDaySuffix(int day) {
     if (day >= 11 && day <= 13) {
       return 'th';
     }
-    
+
     switch (day % 10) {
-      case 1: return 'st';
-      case 2: return 'nd';
-      case 3: return 'rd';
-      default: return 'th';
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
     }
   }
 
   String _getMonthName(int month) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
     ];
     return months[month - 1];
   }
-  
+
   void _onTabChanged() {
     if (_tabController.index == 0) {
       // Operational tab selected
@@ -224,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
     setState(() {});
   }
-  
+
   // Fetch tasks based on user role
   Future<void> _fetchTasksBasedOnRole() async {
     // Check user role and call appropriate API
@@ -234,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen>
       await _fetchOperationalTasks();
     }
   }
-  
+
   // Fetch HOD tasks from the API
   Future<void> _fetchHODTasks() async {
     setState(() {
@@ -242,27 +256,25 @@ class _HomeScreenState extends State<HomeScreen>
       _isAnyOperationInProgress = true; // Set global loading state
       _errorMessage = null;
     });
-    
+
     try {
       final tasksMap = await TaskService.fetchHODTasks();
-      
+
       List<Task> todayTasks = [];
       List<Task> tomorrowTasks = [];
       List<Task> completedTasks = [];
-      
+
       // Process today's tasks - separate completed from due tasks
       for (var task in tasksMap['today']!) {
         final key = _getTaskKey(task.id, 'today');
         _checkedTasks[key] = task.isCompleted;
-        
+
         // Calculate time remaining for this task
         if (_shiftEndTime != null) {
           _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
-            _currentTime, 
-            _shiftEndTime!
-          );
+              _currentTime, _shiftEndTime!);
         }
-        
+
         if (task.isCompleted) {
           // Add to completed tasks list
           completedTasks.add(task);
@@ -271,15 +283,15 @@ class _HomeScreenState extends State<HomeScreen>
           todayTasks.add(task);
         }
       }
-      
+
       // Process tomorrow's tasks - separate completed from due tasks
       for (var task in tasksMap['tomorrow']!) {
         final key = _getTaskKey(task.id, 'tomorrow');
         _checkedTasks[key] = task.isCompleted;
-        
+
         // Set "1 day left" for tomorrow's tasks
         _taskTimeRemaining[key] = "1 day left";
-        
+
         if (task.isCompleted) {
           // Add to completed tasks list
           completedTasks.add(task);
@@ -288,11 +300,12 @@ class _HomeScreenState extends State<HomeScreen>
           tomorrowTasks.add(task);
         }
       }
-      
+
       setState(() {
         _todayOperationalTasks = todayTasks;
         _tomorrowOperationalTasks = tomorrowTasks;
-        _completedOperationalTasks = completedTasks; // Store completed tasks separately
+        _completedOperationalTasks =
+            completedTasks; // Store completed tasks separately
         _isLoading = false;
         _isAnyOperationInProgress = false; // Clear global loading state
       });
@@ -304,7 +317,7 @@ class _HomeScreenState extends State<HomeScreen>
       });
     }
   }
-  
+
   // Fetch operational tasks from the API
   Future<void> _fetchOperationalTasks() async {
     setState(() {
@@ -312,19 +325,19 @@ class _HomeScreenState extends State<HomeScreen>
       _isAnyOperationInProgress = true; // Set global loading state
       _errorMessage = null;
     });
-    
+
     try {
       final tasksMap = await TaskService.fetchOperationalTasks();
-      
+
       List<Task> todayTasks = [];
       List<Task> tomorrowTasks = [];
       List<Task> completedTasks = [];
-      
+
       // Process today's tasks - separate completed from due tasks
       for (var task in tasksMap['today']!) {
         final key = _getTaskKey(task.id, 'today');
         _checkedTasks[key] = task.isCompleted;
-        
+
         if (task.isCompleted) {
           // Add to completed tasks list
           completedTasks.add(task);
@@ -333,12 +346,12 @@ class _HomeScreenState extends State<HomeScreen>
           todayTasks.add(task);
         }
       }
-      
+
       // Process tomorrow's tasks - separate completed from due tasks
       for (var task in tasksMap['tomorrow']!) {
         final key = _getTaskKey(task.id, 'tomorrow');
         _checkedTasks[key] = task.isCompleted;
-        
+
         if (task.isCompleted) {
           // Add to completed tasks list
           completedTasks.add(task);
@@ -347,11 +360,12 @@ class _HomeScreenState extends State<HomeScreen>
           tomorrowTasks.add(task);
         }
       }
-      
+
       setState(() {
         _todayOperationalTasks = todayTasks;
         _tomorrowOperationalTasks = tomorrowTasks;
-        _completedOperationalTasks = completedTasks; // Store completed tasks separately
+        _completedOperationalTasks =
+            completedTasks; // Store completed tasks separately
         _isLoading = false;
         _isAnyOperationInProgress = false; // Clear global loading state
       });
@@ -363,111 +377,126 @@ class _HomeScreenState extends State<HomeScreen>
       });
     }
   }
-  
+
   // Fetch maintenance tasks from the API
   // Enhanced method with better error handling and debugging
 
 // Fetch maintenance tasks based on user role
-Future<void> _fetchMaintenanceTasks() async {
-  setState(() {
-    _isMaintenanceLoading = true;
-    _isAnyOperationInProgress = true; // Set global loading state
-    _errorMessage = null;
-  });
-  
-  try {
-    print('Fetching maintenance tasks for user role: ${_userRole}');
-    
-    // Call the appropriate API based on user role
-    final Map<String, List<Task>> tasksMap;
-    if (_userRole == UserRole.hod) {
-      print('Calling HOD Maintenance API');
-      tasksMap = await TaskService.fetchHODMaintenanceTasks();
-    } else {
-      print('Calling Shift Incharge Maintenance API');
-      tasksMap = await TaskService.fetchMaintenanceTasks();
-    }
-    
-    print('Tasks received - Today: ${tasksMap['today']?.length ?? 0}, Tomorrow: ${tasksMap['tomorrow']?.length ?? 0}');
-    
-    List<Task> todayTasks = [];
-    List<Task> tomorrowTasks = [];
-    List<Task> completedTasks = [];
-    
-    // Process today's tasks - separate completed from due tasks
-    if (tasksMap['today'] != null && tasksMap['today']!.isNotEmpty) {
-      for (var task in tasksMap['today']!) {
-        final key = _getTaskKey(task.id, 'maintenance_today');
-        _checkedTasks[key] = task.isCompleted;
-        
-        // Calculate time remaining for this task
-        if (_shiftEndTime != null) {
-          _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
-            _currentTime, 
-            _shiftEndTime!
-          );
-        }
-        
-        if (task.isCompleted) {
-          // Add to completed tasks list
-          completedTasks.add(task);
-          print('Adding completed task: ${task.name}');
-        } else {
-          // Add to today's tasks list
-          todayTasks.add(task);
-          print('Adding today\'s task: ${task.name}');
-        }
-      }
-    } else {
-      print('No today tasks found in response');
-    }
-    
-    // Process tomorrow's tasks - separate completed from due tasks
-    if (tasksMap['tomorrow'] != null && tasksMap['tomorrow']!.isNotEmpty) {
-      for (var task in tasksMap['tomorrow']!) {
-        final key = _getTaskKey(task.id, 'maintenance_tomorrow');
-        _checkedTasks[key] = task.isCompleted;
-        
-        // Set "1 day left" for tomorrow's tasks
-        _taskTimeRemaining[key] = "1 day left";
-        
-        if (task.isCompleted) {
-          // Add to completed tasks list
-          completedTasks.add(task);
-          print('Adding completed task (tomorrow): ${task.name}');
-        } else {
-          // Add to tomorrow's tasks list
-          tomorrowTasks.add(task);
-          print('Adding tomorrow\'s task: ${task.name}');
-        }
-      }
-    } else {
-      print('No tomorrow tasks found in response');
-    }
-    
-    print('Processed tasks - Today: ${todayTasks.length}, Tomorrow: ${tomorrowTasks.length}, Completed: ${completedTasks.length}');
-    
+  Future<void> _fetchMaintenanceTasks() async {
     setState(() {
-      _todayMaintenanceTasks = todayTasks;
-      _tomorrowMaintenanceTasks = tomorrowTasks;
-      _completedMaintenanceTasks = completedTasks; // Store completed tasks separately
-      _isMaintenanceLoading = false;
-      _isAnyOperationInProgress = false; // Clear global loading state
-      print('State updated with maintenance tasks');
+      _isMaintenanceLoading = true;
+      _isAnyOperationInProgress = true; // Set global loading state
+      _errorMessage = null;
     });
-  } catch (e) {
-    print('Error in _fetchMaintenanceTasks: $e');
-    setState(() {
-      _errorMessage = 'Failed to load maintenance tasks: $e';
-      _isMaintenanceLoading = false;
-      _isAnyOperationInProgress = false; // Clear global loading state
-    });
-  }
-}
 
-  // When a task is marked as complete, move it to the completed tasks list
-  Future<void> _updateTaskCompletion(Task task, String section, bool isCompleted) async {
+    try {
+      print('Fetching maintenance tasks for user role: ${_userRole}');
+
+      // Call the appropriate API based on user role
+      final Map<String, List<Task>> tasksMap;
+      if (_userRole == UserRole.hod) {
+        print('Calling HOD Maintenance API');
+        tasksMap = await TaskService.fetchHODMaintenanceTasks();
+      } else {
+        print('Calling Shift Incharge Maintenance API');
+        tasksMap = await TaskService.fetchMaintenanceTasks();
+      }
+
+      print(
+          'Tasks received - Today: ${tasksMap['today']?.length ?? 0}, Tomorrow: ${tasksMap['tomorrow']?.length ?? 0}');
+
+      List<Task> todayTasks = [];
+      List<Task> tomorrowTasks = [];
+      List<Task> completedTasks = [];
+
+      // Process today's tasks - separate completed from due tasks
+      if (tasksMap['today'] != null && tasksMap['today']!.isNotEmpty) {
+        for (var task in tasksMap['today']!) {
+          final key = _getTaskKey(task.id, 'maintenance_today');
+          _checkedTasks[key] = task.isCompleted;
+
+          // Calculate time remaining for this task
+          if (_shiftEndTime != null) {
+            _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
+                _currentTime, _shiftEndTime!);
+          }
+
+          if (task.isCompleted) {
+            // Add to completed tasks list
+            completedTasks.add(task);
+            print('Adding completed task: ${task.name}');
+          } else {
+            // Add to today's tasks list
+            todayTasks.add(task);
+            print('Adding today\'s task: ${task.name}');
+          }
+        }
+      } else {
+        print('No today tasks found in response');
+      }
+
+      // Process tomorrow's tasks - separate completed from due tasks
+      if (tasksMap['tomorrow'] != null && tasksMap['tomorrow']!.isNotEmpty) {
+        for (var task in tasksMap['tomorrow']!) {
+          final key = _getTaskKey(task.id, 'maintenance_tomorrow');
+          _checkedTasks[key] = task.isCompleted;
+
+          // Set "1 day left" for tomorrow's tasks
+          _taskTimeRemaining[key] = "1 day left";
+
+          if (task.isCompleted) {
+            // Add to completed tasks list
+            completedTasks.add(task);
+            print('Adding completed task (tomorrow): ${task.name}');
+          } else {
+            // Add to tomorrow's tasks list
+            tomorrowTasks.add(task);
+            print('Adding tomorrow\'s task: ${task.name}');
+          }
+        }
+      } else {
+        print('No tomorrow tasks found in response');
+      }
+
+      print(
+          'Processed tasks - Today: ${todayTasks.length}, Tomorrow: ${tomorrowTasks.length}, Completed: ${completedTasks.length}');
+
+      setState(() {
+        _todayMaintenanceTasks = todayTasks;
+        _tomorrowMaintenanceTasks = tomorrowTasks;
+        _completedMaintenanceTasks =
+            completedTasks; // Store completed tasks separately
+        _isMaintenanceLoading = false;
+        _isAnyOperationInProgress = false; // Clear global loading state
+        print('State updated with maintenance tasks');
+      });
+    } catch (e) {
+      print('Error in _fetchMaintenanceTasks: $e');
+      setState(() {
+        _errorMessage = 'Failed to load maintenance tasks: $e';
+        _isMaintenanceLoading = false;
+        _isAnyOperationInProgress = false; // Clear global loading state
+      });
+    }
+  }
+
+// Updated _updateTaskCompletion method in home_screen.dart
+Future<void> _updateTaskCompletion(Task task, String section, bool isCompleted, BuildContext context) async {
     final taskKey = _getTaskKey(task.id, section);
+    
+    // For Shift Incharge role: Check if task has is_range=1 and user is trying to complete it
+    if (isCompleted && task.isRange && _userRole == UserRole.shiftIncharge) {
+      // Show numeric input dialog and get the value
+      final numericValue = await _showNumericInputDialog(task,context);
+      
+      // If user cancelled or didn't enter a value, don't proceed with task completion
+      if (numericValue == null) {
+        return;
+      }
+      
+      // Continue with task completion, now with the numeric value
+      // In a real implementation, you'd pass this value to the API
+    }
     
     // Start updating - show loaders
     setState(() {
@@ -567,6 +596,126 @@ Future<void> _fetchMaintenanceTasks() async {
     }
   }
 
+// Add a new method to show the numeric input dialog
+Future<String?> _showNumericInputDialog(Task task, BuildContext context) async {
+  final bool isTablet = ResponsiveUtils.isTablet(context);  
+  // Extract min and max values from specification range if available
+  String rangeText = task.specificationRange;
+  String helperText = 'Enter measured value';
+  
+  if (rangeText.contains('to')) {
+    final parts = rangeText.split('to');
+    if (parts.length == 2) {
+      String min = parts[0].trim();
+      String max = parts[1].trim();
+      helperText = 'Valid range: $min to $max';
+    }
+  }
+  
+  // Use a different approach to return the dialog result
+  try {
+    final result = await showDialog<String?>(
+      context: context,
+      barrierDismissible: false, // User must tap a button to close the dialog
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(
+            'Enter Measurement',
+            style: TextStyle(
+              fontSize: isTablet ? 20.0 : 18.0,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                task.name,
+                style: TextStyle(
+                  fontSize: isTablet ? 16.0 : 14.0,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              SizedBox(height: 8),
+              if (rangeText.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Text(
+                    'Specification: $rangeText',
+                    style: TextStyle(
+                      fontSize: isTablet ? 14.0 : 12.0,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ),
+              TextField(
+                controller: textController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Measured Value',
+                  helperText: helperText,
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+                // Input validation - only allow numbers and decimal point
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
+                ],
+                autofocus: true,
+                onSubmitted: (value) {
+                  // Allow pressing Enter to submit
+                  if (value.isNotEmpty) {
+                    Navigator.of(context).pop(value);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(null); // Return null for cancel
+              },
+              child: Text(
+                'CANCEL',
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: isTablet ? 16.0 : 14.0,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final value = textController.text;
+                if (value.isNotEmpty) {
+                  Navigator.of(context).pop(value); // Return the input value
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              child: Text(
+                'SUBMIT',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isTablet ? 16.0 : 14.0,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    
+    return result; // This will be null if canceled or the input value if submitted
+  } finally {
+    // Ensure controller is disposed
+    
+  }
+}
   @override
   void dispose() {
     _tabController.removeListener(_onTabChanged);
@@ -579,10 +728,10 @@ Future<void> _fetchMaintenanceTasks() async {
   Widget build(BuildContext context) {
     final bool isTablet = ResponsiveUtils.isTablet(context);
     final bool isLandscape = ResponsiveUtils.isLandscape(context);
-    
+
     // Determine if we should use a side-by-side layout on tablets in landscape
     final bool useSplitView = isTablet && isLandscape;
-    
+
     return Scaffold(
       backgroundColor: Color(0xFFF9F5F4),
       body: SafeArea(
@@ -599,13 +748,15 @@ Future<void> _fetchMaintenanceTasks() async {
                 color: Colors.transparent,
                 child: LinearProgressIndicator(
                   backgroundColor: Colors.grey[200],
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.purple[300]!),
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(Colors.purple[300]!),
                 ),
               )
             else
-              SizedBox(height: 4.0), // Placeholder to maintain layout consistency
+              SizedBox(
+                  height: 4.0), // Placeholder to maintain layout consistency
 
-              // Date Header
+            // Date Header
             Container(
               padding: const EdgeInsets.symmetric(vertical: 15),
               width: double.infinity,
@@ -626,7 +777,8 @@ Future<void> _fetchMaintenanceTasks() async {
                         _shiftTimingDisplay,
                         style: TextStyle(
                           color: Colors.grey[700],
-                          fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
+                          fontSize:
+                              ResponsiveUtils.getScaledFontSize(context, 12),
                         ),
                       ),
                     ),
@@ -670,7 +822,8 @@ Future<void> _fetchMaintenanceTasks() async {
                           if (_tabController.index == 0)
                             Padding(
                               padding: const EdgeInsets.only(right: 4.0),
-                              child: Icon(Icons.check, size: isTablet ? 20 : 16),
+                              child:
+                                  Icon(Icons.check, size: isTablet ? 20 : 16),
                             ),
                           const Text('Operational'),
                         ],
@@ -684,7 +837,8 @@ Future<void> _fetchMaintenanceTasks() async {
                           if (_tabController.index == 1)
                             Padding(
                               padding: const EdgeInsets.only(right: 4.0),
-                              child: Icon(Icons.check, size: isTablet ? 20 : 16),
+                              child:
+                                  Icon(Icons.check, size: isTablet ? 20 : 16),
                             ),
                           const Text('Maintenance'),
                         ],
@@ -713,7 +867,8 @@ Future<void> _fetchMaintenanceTasks() async {
                                 child: Text(
                                   'Due Tasks',
                                   style: TextStyle(
-                                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                                    fontSize: ResponsiveUtils.getScaledFontSize(
+                                        context, 16),
                                     fontWeight: FontWeight.bold,
                                     color: const Color(0xFF673AB7),
                                   ),
@@ -723,7 +878,7 @@ Future<void> _fetchMaintenanceTasks() async {
                                 child: TabBarView(
                                   controller: _tabController,
                                   children: [
-                                    _buildOperationalDueTasksView(),
+                                    _buildOperationalDueTasksView(context),
                                     _buildMaintenanceDueTasksView(),
                                   ],
                                 ),
@@ -731,13 +886,13 @@ Future<void> _fetchMaintenanceTasks() async {
                             ],
                           ),
                         ),
-                        
+
                         // Vertical divider
                         Container(
                           width: 1,
                           color: Colors.grey[300],
                         ),
-                        
+
                         // Completed Tasks (Right side)
                         Expanded(
                           child: Column(
@@ -748,7 +903,8 @@ Future<void> _fetchMaintenanceTasks() async {
                                 child: Text(
                                   'Completed Tasks',
                                   style: TextStyle(
-                                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                                    fontSize: ResponsiveUtils.getScaledFontSize(
+                                        context, 16),
                                     fontWeight: FontWeight.bold,
                                     color: Colors.grey[600],
                                   ),
@@ -773,7 +929,7 @@ Future<void> _fetchMaintenanceTasks() async {
                       children: [
                         // Operational Tab
                         _currentIndex == 0
-                            ? _buildOperationalDueTasksView()
+                            ? _buildOperationalDueTasksView(context)
                             : _buildOperationalCompletedTasksView(),
 
                         // Maintenance Tab
@@ -823,11 +979,12 @@ Future<void> _fetchMaintenanceTasks() async {
         ),
       ),
     );
+    
   }
 
   Widget _buildAppBar() {
     final bool isTablet = ResponsiveUtils.isTablet(context);
-    
+
     return Container(
       padding: EdgeInsets.symmetric(
         vertical: isTablet ? 20.0 : 16.0,
@@ -878,7 +1035,7 @@ Future<void> _fetchMaintenanceTasks() async {
             message: "${_userName} (${AuthService.getRoleName(_userRole)})",
             child: Badge(
               isLabelVisible: _userRole != UserRole.shiftIncharge,
-              backgroundColor: _userRole == UserRole.hod 
+              backgroundColor: _userRole == UserRole.hod
                   ? Colors.purple[700]
                   : Colors.blue[700],
               label: Text(
@@ -910,7 +1067,7 @@ Future<void> _fetchMaintenanceTasks() async {
     required VoidCallback onTap,
   }) {
     final bool isTablet = ResponsiveUtils.isTablet(context);
-    
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -946,152 +1103,156 @@ Future<void> _fetchMaintenanceTasks() async {
     );
   }
 
-  Widget _buildOperationalDueTasksView() {
-  final bool isTablet = ResponsiveUtils.isTablet(context);
+  Widget _buildOperationalDueTasksView(BuildContext context) {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
 
-  return SingleChildScrollView(
-    padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Display loading indicator when loading
-        if (_isLoading)
-          Center(
-            child: Padding(
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Display loading indicator when loading
+          if (_isLoading)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+
+          // Display error message if there's an error
+          if (_errorMessage != null)
+            Padding(
               padding: const EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(),
+              child: Text(
+                _errorMessage!,
+                style: TextStyle(color: Colors.red),
+              ),
             ),
-          ),
-            
-        // Display error message if there's an error
-        if (_errorMessage != null)
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              _errorMessage!,
-              style: TextStyle(color: Colors.red),
+
+          // Show HOD view-only mode info banner
+          if (_userRole == UserRole.hod)
+            Container(
+              margin: EdgeInsets.only(top: 16, bottom: 16),
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.visibility_outlined,
+                      color: Colors.grey[600], size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "HOD view mode: Tasks are read-only",
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize:
+                            ResponsiveUtils.getScaledFontSize(context, 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-            
-        // Show HOD view-only mode info banner
-        if (_userRole == UserRole.hod)
-          Container(
-            margin: EdgeInsets.only(top: 16, bottom: 16),
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.visibility_outlined, color: Colors.grey[600], size: 16),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    "HOD view mode: Tasks are read-only",
+
+          if (!_isLoading && _errorMessage == null) ...[
+            // TODAY SECTION
+            Padding(
+              padding: EdgeInsets.only(
+                top: isTablet ? 24.0 : 16.0,
+                bottom: isTablet ? 12.0 : 8.0,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.today,
+                    color: const Color(0xFF673AB7),
+                    size: isTablet ? 24.0 : 20.0,
+                  ),
+                  SizedBox(width: 8.0),
+                  Text(
+                    "TODAY",
                     style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
+                      color: const Color(0xFF673AB7),
+                      fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        
-        if (!_isLoading && _errorMessage == null) ...[  
-          // TODAY SECTION
-          Padding(
-            padding: EdgeInsets.only(
-              top: isTablet ? 24.0 : 16.0,
-              bottom: isTablet ? 12.0 : 8.0,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.today,
-                  color: const Color(0xFF673AB7),
-                  size: isTablet ? 24.0 : 20.0,
-                ),
-                SizedBox(width: 8.0),
-                Text(
-                  "TODAY",
-                  style: TextStyle(
-                    color: const Color(0xFF673AB7),
-                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Today's tasks - no fallback to dummy data
-          _todayOperationalTasks.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Center(
-                    child: Text(
-                      "No tasks available for today",
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
+
+            // Today's tasks - no fallback to dummy data
+            _todayOperationalTasks.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Text(
+                        "No tasks available for today",
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize:
+                              ResponsiveUtils.getScaledFontSize(context, 14),
+                        ),
                       ),
                     ),
-                  ),
-                )
-              : _buildTasksSection(_todayOperationalTasks, "today"),
-          
-          // TOMORROW SECTION
-          Padding(
-            padding: EdgeInsets.only(
-              top: isTablet ? 32.0 : 24.0,
-              bottom: isTablet ? 12.0 : 8.0,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.event_note,
-                  color: const Color(0xFF673AB7),
-                  size: isTablet ? 24.0 : 20.0,
-                ),
-                SizedBox(width: 8.0),
-                Text(
-                  "TOMORROW",
-                  style: TextStyle(
+                  )
+                : _buildTasksSection(_todayOperationalTasks, "today",),
+
+            // TOMORROW SECTION
+            Padding(
+              padding: EdgeInsets.only(
+                top: isTablet ? 32.0 : 24.0,
+                bottom: isTablet ? 12.0 : 8.0,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event_note,
                     color: const Color(0xFF673AB7),
-                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
-                    fontWeight: FontWeight.bold,
+                    size: isTablet ? 24.0 : 20.0,
                   ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Tomorrow's tasks - no fallback to dummy data
-          _tomorrowOperationalTasks.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Center(
-                    child: Text(
-                      "No tasks available for tomorrow",
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
-                      ),
+                  SizedBox(width: 8.0),
+                  Text(
+                    "TOMORROW",
+                    style: TextStyle(
+                      color: const Color(0xFF673AB7),
+                      fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                )
-              : _buildTasksSection(_tomorrowOperationalTasks, "tomorrow"),
+                ],
+              ),
+            ),
+
+            // Tomorrow's tasks - no fallback to dummy data
+            _tomorrowOperationalTasks.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Text(
+                        "No tasks available for tomorrow",
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize:
+                              ResponsiveUtils.getScaledFontSize(context, 14),
+                        ),
+                      ),
+                    ),
+                  )
+                : _buildTasksSection(_tomorrowOperationalTasks, "tomorrow"),
+          ],
+
+          // Add some padding at the bottom
+          SizedBox(height: 16.0),
         ],
-        
-        // Add some padding at the bottom
-        SizedBox(height: 16.0),
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
 
   // Helper method to build task sections
   Widget _buildTasksSection(List<Task> tasks, String section) {
@@ -1110,7 +1271,7 @@ Future<void> _fetchMaintenanceTasks() async {
         ),
       );
     }
-    
+
     // Group tasks by category
     Map<String, List<Task>> groupedTasks = {};
     for (var task in tasks) {
@@ -1132,13 +1293,13 @@ Future<void> _fetchMaintenanceTasks() async {
             // Category label (HMI, BLOWER, etc.)
             Padding(
               padding: EdgeInsets.only(
-                top: ResponsiveUtils.isTablet(context) ? 16.0 : 12.0, 
-                bottom: 4
-              ),
+                  top: ResponsiveUtils.isTablet(context) ? 16.0 : 12.0,
+                  bottom: 4),
               child: Text(
                 category,
                 style: TextStyle(
-                  color: const Color(0xFFCAB3AC), // Soft brownish color for category
+                  color: const Color(
+                      0xFFCAB3AC), // Soft brownish color for category
                   fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
                   fontWeight: FontWeight.w400,
                 ),
@@ -1154,27 +1315,31 @@ Future<void> _fetchMaintenanceTasks() async {
   }
 
   // Due Task Item with section parameter and enhanced time remaining display for all roles
+  // Updated _buildDueTaskItem method in home_screen.dart
   Widget _buildDueTaskItem(Task task, String section) {
     final bool isTablet = ResponsiveUtils.isTablet(context);
     final taskKey = _getTaskKey(task.id, section);
     final bool isChecked = _checkedTasks[taskKey] ?? false;
     final bool isUpdating = _updatingTasks.contains(taskKey);
-    
+
     // Get time remaining from the map or use task's default value
     String timeRemaining = _taskTimeRemaining[taskKey] ?? task.timeRemaining;
-    
+
     // If time remaining is still empty but task has a value, use it
     if (timeRemaining.isEmpty && task.timeRemaining.isNotEmpty) {
       timeRemaining = task.timeRemaining;
     }
-    
+
     // Check if time remaining is critical (less than 1 hour or minutes left)
     final bool isTimeWarning = TaskTimeUtils.isTimeUrgent(timeRemaining);
-    
+
     // Check if user is HOD (should not be able to change task status)
     final bool isHOD = _userRole == UserRole.hod;
     final bool isIncharge = _userRole == UserRole.shiftIncharge;
-    
+
+    // Check if this is a tomorrow task (disable for all users)
+    final bool isTomorrowTask = section.contains('tomorrow');
+
     // Extract hours from timeRemaining if it contains "hours"
     String hoursValue = "";
     if (timeRemaining.contains("hour")) {
@@ -1200,11 +1365,11 @@ Future<void> _fetchMaintenanceTasks() async {
           children: [
             // Checkbox or Loading indicator
             GestureDetector(
-              onTap: isUpdating || isHOD
-                  ? null // Disable interaction while updating or for HOD users
+              onTap: isUpdating || isHOD || isTomorrowTask
+                  ? null // Disable interaction while updating, for HOD users, or for tomorrow tasks
                   : () async {
                       // Toggle the status and update the task
-                      await _updateTaskCompletion(task, section, !isChecked);
+                      await _updateTaskCompletion(task, section, !isChecked,context);
                     },
               child: Container(
                 margin: const EdgeInsets.only(right: 12, top: 2),
@@ -1214,14 +1379,16 @@ Future<void> _fetchMaintenanceTasks() async {
                   color: Colors.white,
                   border: Border.all(color: Colors.grey[400]!),
                   borderRadius: BorderRadius.circular(4),
-                  // Add a light gray overlay for HOD to indicate it's disabled
-                  boxShadow: isHOD ? [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      spreadRadius: 1,
-                      blurRadius: 1,
-                    )
-                  ] : null,
+                  // Add a light gray overlay for HOD or tomorrow tasks to indicate it's disabled
+                  boxShadow: isHOD || isTomorrowTask
+                      ? [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            spreadRadius: 1,
+                            blurRadius: 1,
+                          )
+                        ]
+                      : null,
                 ),
                 child: isUpdating
                     ? SizedBox(
@@ -1238,7 +1405,9 @@ Future<void> _fetchMaintenanceTasks() async {
                     : isChecked
                         ? Icon(
                             Icons.check,
-                            color: isHOD ? Colors.grey[400] : Colors.grey[600],
+                            color: isHOD || isTomorrowTask
+                                ? Colors.grey[400]
+                                : Colors.grey[600],
                             size: isTablet ? 20.0 : 16.0,
                           )
                         : null,
@@ -1258,7 +1427,7 @@ Future<void> _fetchMaintenanceTasks() async {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  
+
                   Text(
                     timeRemaining,
                     style: TextStyle(
@@ -1270,7 +1439,21 @@ Future<void> _fetchMaintenanceTasks() async {
                           isTimeWarning ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
-                    
+
+                  // Add indicator for tomorrow tasks (cannot be completed today)
+                  if (isTomorrowTask)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        'Cannot be completed until tomorrow',
+                        style: TextStyle(
+                          fontSize: isTablet ? 12.0 : 10.0,
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+
                   // Add specification range display
                   if (task.specificationRange.isNotEmpty)
                     Padding(
@@ -1295,62 +1478,60 @@ Future<void> _fetchMaintenanceTasks() async {
 
   // Operational Completed Tasks
   Widget _buildOperationalCompletedTasksView() {
-  final bool isTablet = ResponsiveUtils.isTablet(context);
+    final bool isTablet = ResponsiveUtils.isTablet(context);
 
-  return SingleChildScrollView(
-    padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Display loading indicator when loading
-        if (_isLoading)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(),
-            ),
-          ),
-          
-        if (!_isLoading) ...[
-          // Header for completed tasks
-          Padding(
-            padding: EdgeInsets.only(
-              top: isTablet ? 16.0 : 8.0,
-              bottom: isTablet ? 16.0 : 8.0
-            ),
-            child: Text(
-              "COMPLETED",
-              style: TextStyle(
-                color: const Color(0xFFBDBDBD),
-                fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
-                fontWeight: FontWeight.w500,
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Display loading indicator when loading
+          if (_isLoading)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
               ),
             ),
-          ),
-          
-          // If no completed tasks, show message - no fallback to dummy data
-          if (_completedOperationalTasks.isEmpty)
+
+          if (!_isLoading) ...[
+            // Header for completed tasks
             Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Center(
-                child: Text(
-                  "No completed tasks yet",
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
-                  ),
+              padding: EdgeInsets.only(
+                  top: isTablet ? 16.0 : 8.0, bottom: isTablet ? 16.0 : 8.0),
+              child: Text(
+                "COMPLETED",
+                style: TextStyle(
+                  color: const Color(0xFFBDBDBD),
+                  fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-            )
-          else
-            // Group tasks by category for a better organization
-            _buildCompletedTasksSection(_completedOperationalTasks),
+            ),
+
+            // If no completed tasks, show message - no fallback to dummy data
+            if (_completedOperationalTasks.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Center(
+                  child: Text(
+                    "No completed tasks yet",
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
+                    ),
+                  ),
+                ),
+              )
+            else
+              // Group tasks by category for a better organization
+              _buildCompletedTasksSection(_completedOperationalTasks),
+          ],
         ],
-      ],
-    ),
-  );
-}
-  
+      ),
+    );
+  }
+
   // Build completed tasks section with category grouping
   Widget _buildCompletedTasksSection(List<Task> tasks) {
     // If no tasks are available, show a message
@@ -1368,7 +1549,7 @@ Future<void> _fetchMaintenanceTasks() async {
         ),
       );
     }
-    
+
     // Group tasks by category
     Map<String, List<Task>> groupedTasks = {};
     for (var task in tasks) {
@@ -1377,7 +1558,7 @@ Future<void> _fetchMaintenanceTasks() async {
       }
       groupedTasks[task.category]!.add(task);
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1407,15 +1588,17 @@ Future<void> _fetchMaintenanceTasks() async {
               ],
             ),
           ),
-          
+
         ...groupedTasks.entries.map((entry) {
           final category = entry.key;
           final categoryTasks = entry.value;
-          
+
           // Skip "COMPLETED" category (for dummy data)
           if (category == 'COMPLETED') {
             return Column(
-              children: categoryTasks.map((task) => _buildCompletedTaskItem(task)).toList(),
+              children: categoryTasks
+                  .map((task) => _buildCompletedTaskItem(task))
+                  .toList(),
             );
           }
 
@@ -1425,9 +1608,8 @@ Future<void> _fetchMaintenanceTasks() async {
               // Category label (except for 'COMPLETED')
               Padding(
                 padding: EdgeInsets.only(
-                  top: ResponsiveUtils.isTablet(context) ? 16.0 : 12.0, 
-                  bottom: 4
-                ),
+                    top: ResponsiveUtils.isTablet(context) ? 16.0 : 12.0,
+                    bottom: 4),
                 child: Text(
                   category,
                   style: TextStyle(
@@ -1437,7 +1619,7 @@ Future<void> _fetchMaintenanceTasks() async {
                   ),
                 ),
               ),
-              
+
               // Tasks in this category
               ...categoryTasks.map((task) => _buildCompletedTaskItem(task)),
             ],
@@ -1450,17 +1632,20 @@ Future<void> _fetchMaintenanceTasks() async {
   // Completed Task Item
   Widget _buildCompletedTaskItem(Task task) {
     final bool isTablet = ResponsiveUtils.isTablet(context);
-    
+
     // Determine which section this task belongs to (today/tomorrow)
-    final String section = task.id.length > 2 ? 'completed' : 
-      (_todayOperationalTasks.any((t) => t.category == task.category) ? 'today' : 'tomorrow');
-    
+    final String section = task.id.length > 2
+        ? 'completed'
+        : (_todayOperationalTasks.any((t) => t.category == task.category)
+            ? 'today'
+            : 'tomorrow');
+
     final taskKey = _getTaskKey(task.id, section);
     final bool isUpdating = _updatingTasks.contains(taskKey);
-    
-    // Check if user is HOD (should not be able to change task status)
-    final bool isHOD = _userRole == UserRole.hod;
-    
+
+    // Disable for all users - not just HODs
+    final bool isDisabled = true;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1475,47 +1660,40 @@ Future<void> _fetchMaintenanceTasks() async {
         ),
         child: Row(
           children: [
-            // Completed checkbox with ability to uncheck
-            GestureDetector(
-              onTap: isUpdating || isHOD
-                  ? null // Disable interaction while updating or for HOD users
-                  : () async {
-                      // Mark as incomplete and move back to due tasks
-                      await _updateTaskCompletion(task, section, false);
-                    },
-              child: Container(
-                margin: const EdgeInsets.only(right: 12),
-                height: isTablet ? 24.0 : 20.0,
-                width: isTablet ? 24.0 : 20.0,
-                decoration: BoxDecoration(
-                  color: isHOD ? Colors.grey[200] : Colors.grey[300], // Lighter color for HOD
-                  borderRadius: BorderRadius.circular(4),
-                  // Add subtle opacity for HOD to indicate it's disabled
-                  boxShadow: isHOD ? [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      spreadRadius: 1,
-                      blurRadius: 1,
-                    )
-                  ] : null,
-                ),
-                child: isUpdating
-                    ? SizedBox(
-                        height: isTablet ? 18.0 : 14.0,
-                        width: isTablet ? 18.0 : 14.0,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.0,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        ),
-                      )
-                    : Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: isTablet ? 20.0 : 16.0,
-                      ),
+            // Completed checkbox - disabled for all users
+            Container(
+              margin: const EdgeInsets.only(right: 12),
+              height: isTablet ? 24.0 : 20.0,
+              width: isTablet ? 24.0 : 20.0,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(4),
+                // Add subtle opacity to indicate it's disabled
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 1,
+                  )
+                ],
               ),
+              child: isUpdating
+                  ? SizedBox(
+                      height: isTablet ? 18.0 : 14.0,
+                      width: isTablet ? 18.0 : 14.0,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.0,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: isTablet ? 20.0 : 16.0,
+                    ),
             ),
 
             // Task name and specification
@@ -1537,7 +1715,8 @@ Future<void> _fetchMaintenanceTasks() async {
                       child: Text(
                         'Spec: ${task.specificationRange}',
                         style: TextStyle(
-                          fontSize: ResponsiveUtils.getScaledFontSize(context, 11),
+                          fontSize:
+                              ResponsiveUtils.getScaledFontSize(context, 11),
                           color: Colors.grey[600],
                           fontStyle: FontStyle.italic,
                         ),
@@ -1554,208 +1733,211 @@ Future<void> _fetchMaintenanceTasks() async {
 
   // Maintenance Due Tasks
   Widget _buildMaintenanceDueTasksView() {
-  final bool isTablet = ResponsiveUtils.isTablet(context);
+    final bool isTablet = ResponsiveUtils.isTablet(context);
 
-  return SingleChildScrollView(
-    padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Display loading indicator when loading
-        if (_isMaintenanceLoading)
-          Center(
-            child: Padding(
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Display loading indicator when loading
+          if (_isMaintenanceLoading)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+
+          // Display error message if there's an error
+          if (_errorMessage != null)
+            Padding(
               padding: const EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(),
+              child: Text(
+                _errorMessage!,
+                style: TextStyle(color: Colors.red),
+              ),
             ),
-          ),
-            
-        // Display error message if there's an error
-        if (_errorMessage != null)
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              _errorMessage!,
-              style: TextStyle(color: Colors.red),
+
+          // Show HOD view-only mode info banner
+          if (_userRole == UserRole.hod)
+            Container(
+              margin: EdgeInsets.only(top: 16, bottom: 16),
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.visibility_outlined,
+                      color: Colors.grey[600], size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "HOD view mode: Tasks are read-only",
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize:
+                            ResponsiveUtils.getScaledFontSize(context, 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-            
-        // Show HOD view-only mode info banner
-        if (_userRole == UserRole.hod)
-          Container(
-            margin: EdgeInsets.only(top: 16, bottom: 16),
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.visibility_outlined, color: Colors.grey[600], size: 16),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    "HOD view mode: Tasks are read-only",
+
+          if (!_isMaintenanceLoading && _errorMessage == null) ...[
+            // TODAY SECTION
+            Padding(
+              padding: EdgeInsets.only(
+                top: isTablet ? 24.0 : 16.0,
+                bottom: isTablet ? 12.0 : 8.0,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.today,
+                    color: const Color(0xFF673AB7),
+                    size: isTablet ? 24.0 : 20.0,
+                  ),
+                  SizedBox(width: 8.0),
+                  Text(
+                    "TODAY",
                     style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
+                      color: const Color(0xFF673AB7),
+                      fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-            
-        if (!_isMaintenanceLoading && _errorMessage == null) ...[
-          // TODAY SECTION
-          Padding(
-            padding: EdgeInsets.only(
-              top: isTablet ? 24.0 : 16.0,
-              bottom: isTablet ? 12.0 : 8.0,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.today,
-                  color: const Color(0xFF673AB7),
-                  size: isTablet ? 24.0 : 20.0,
-                ),
-                SizedBox(width: 8.0),
-                Text(
-                  "TODAY",
-                  style: TextStyle(
-                    color: const Color(0xFF673AB7),
-                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Today's maintenance tasks - no fallback to dummy data
-          _todayMaintenanceTasks.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Center(
-                    child: Text(
-                      "No maintenance tasks available for today",
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
+
+            // Today's maintenance tasks - no fallback to dummy data
+            _todayMaintenanceTasks.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Text(
+                        "No maintenance tasks available for today",
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize:
+                              ResponsiveUtils.getScaledFontSize(context, 14),
+                        ),
                       ),
                     ),
-                  ),
-                )
-              : _buildTasksSection(_todayMaintenanceTasks, "maintenance_today"),
-          
-          // TOMORROW SECTION
-          Padding(
-            padding: EdgeInsets.only(
-              top: isTablet ? 32.0 : 24.0,
-              bottom: isTablet ? 12.0 : 8.0,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.event_note,
-                  color: const Color(0xFF673AB7),
-                  size: isTablet ? 24.0 : 20.0,
-                ),
-                SizedBox(width: 8.0),
-                Text(
-                  "TOMORROW",
-                  style: TextStyle(
+                  )
+                : _buildTasksSection(
+                    _todayMaintenanceTasks, "maintenance_today"),
+
+            // TOMORROW SECTION
+            Padding(
+              padding: EdgeInsets.only(
+                top: isTablet ? 32.0 : 24.0,
+                bottom: isTablet ? 12.0 : 8.0,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event_note,
                     color: const Color(0xFF673AB7),
-                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
-                    fontWeight: FontWeight.bold,
+                    size: isTablet ? 24.0 : 20.0,
                   ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Tomorrow's maintenance tasks - no fallback to dummy data
-          _tomorrowMaintenanceTasks.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Center(
-                    child: Text(
-                      "No maintenance tasks available for tomorrow",
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
-                      ),
+                  SizedBox(width: 8.0),
+                  Text(
+                    "TOMORROW",
+                    style: TextStyle(
+                      color: const Color(0xFF673AB7),
+                      fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                )
-              : _buildTasksSection(_tomorrowMaintenanceTasks, "maintenance_tomorrow"),
+                ],
+              ),
+            ),
+
+            // Tomorrow's maintenance tasks - no fallback to dummy data
+            _tomorrowMaintenanceTasks.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Text(
+                        "No maintenance tasks available for tomorrow",
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize:
+                              ResponsiveUtils.getScaledFontSize(context, 14),
+                        ),
+                      ),
+                    ),
+                  )
+                : _buildTasksSection(
+                    _tomorrowMaintenanceTasks, "maintenance_tomorrow"),
+          ],
+
+          // Add some padding at the bottom
+          SizedBox(height: 16.0),
         ],
-        
-        // Add some padding at the bottom
-        SizedBox(height: 16.0),
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
 
   // Maintenance Completed Tasks
   Widget _buildMaintenanceCompletedTasksView() {
-  final bool isTablet = ResponsiveUtils.isTablet(context);
+    final bool isTablet = ResponsiveUtils.isTablet(context);
 
-  return SingleChildScrollView(
-    padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Display loading indicator when loading
-        if (_isMaintenanceLoading)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(),
-            ),
-          ),
-        
-        if (!_isMaintenanceLoading) ...[
-          Padding(
-            padding: EdgeInsets.only(
-              top: isTablet ? 16.0 : 8.0,
-              bottom: isTablet ? 16.0 : 8.0
-            ),
-            child: Text(
-              "COMPLETED",
-              style: TextStyle(
-                color: const Color(0xFFBDBDBD),
-                fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
-                fontWeight: FontWeight.w500,
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24.0 : 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Display loading indicator when loading
+          if (_isMaintenanceLoading)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
               ),
             ),
-          ),
-          
-          // Show completed maintenance tasks - no fallback to dummy data
-          if (_completedMaintenanceTasks.isEmpty)
+
+          if (!_isMaintenanceLoading) ...[
             Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Center(
-                child: Text(
-                  "No completed maintenance tasks yet",
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
-                  ),
+              padding: EdgeInsets.only(
+                  top: isTablet ? 16.0 : 8.0, bottom: isTablet ? 16.0 : 8.0),
+              child: Text(
+                "COMPLETED",
+                style: TextStyle(
+                  color: const Color(0xFFBDBDBD),
+                  fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-            )
-          else
-            _buildCompletedTasksSection(_completedMaintenanceTasks),
-        ],
-      ],
-    ),
-  );
-}
+            ),
 
+            // Show completed maintenance tasks - no fallback to dummy data
+            if (_completedMaintenanceTasks.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Center(
+                  child: Text(
+                    "No completed maintenance tasks yet",
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
+                    ),
+                  ),
+                ),
+              )
+            else
+              _buildCompletedTasksSection(_completedMaintenanceTasks),
+          ],
+        ],
+      ),
+    );
+  }
 
   double _getTextWidth(String text, TextStyle style) {
     final TextPainter textPainter = TextPainter(
