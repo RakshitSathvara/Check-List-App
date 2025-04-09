@@ -39,8 +39,8 @@ class AuthService {
           username: userData['user_name'],
           name: userData['name'],
           role: _mapStringToUserRole(userData['role']),
-          // You can add more fields if available in the API response
-          department: '',
+          // Parse department if available or leave empty
+          department: userData['department'] ?? '',
           password: '',
         );
         
@@ -89,5 +89,35 @@ class AuthService {
       case UserRole.plantHead:
         return 'Plant Head';
     }
+  }
+  
+  // Helper method to get department name based on user role
+  static String getDepartmentName() {
+    if (_currentUser != null) {
+      if (_currentUser!.department.isNotEmpty) {
+        return _currentUser!.department;
+      }
+      
+      switch (_currentUser!.role) {
+        case UserRole.hod:
+          return 'Department';
+        case UserRole.shiftIncharge:
+          return 'Production';
+        case UserRole.plantHead:
+          return 'All Departments';
+      }
+    }
+    return 'Department';
+  }
+  
+  // Helper method to get shift information as a formatted string
+  static String getShiftInfo() {
+    if (_currentShift != null) {
+      final name = _currentShift!['name'] as String? ?? 'Shift';
+      final shortName = _currentShift!['shortName'] as String? ?? '';
+      
+      return "$name ${shortName.isNotEmpty ? '- $shortName' : ''}";
+    }
+    return 'Shift';
   }
 }

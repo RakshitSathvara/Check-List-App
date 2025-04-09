@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/dummy_data.dart';
 import '../models/task.dart';
+import '../models/user.dart';
 import '../utils/responsive_utils.dart';
 import '../services/task_service.dart';
+import '../services/auth_service.dart';
+import '../utils/task_time_utils.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -16,9 +20,23 @@ class _HomeScreenState extends State<HomeScreen>
   late TabController _tabController;
   int _currentIndex = 0; // 0 for Due Tasks, 1 for Completed Tasks
   late String _currentDateTime;
+  late String _departmentName = "Department";
+  late String _shiftName = "Shift";
+  late String _shiftTimingDisplay = "";
+  late String _userName = "User";
+  late UserRole _userRole = UserRole.shiftIncharge;
+  
+  // Timer for updating time remaining
+  Timer? _timeUpdateTimer;
+  DateTime _currentTime = DateTime.now();
+  String? _shiftStartTime;
+  String? _shiftEndTime;
 
   // Map to keep track of checked tasks with section-specific keys
   final Map<String, bool> _checkedTasks = {};
+  
+  // Map to store calculated time remaining for tasks
+  final Map<String, String> _taskTimeRemaining = {};
   
   // Set to track which tasks are currently being updated
   final Set<String> _updatingTasks = {};
@@ -36,8 +54,12 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     
-    // Set current date time with proper formatting
+    // Set current time and update date time display
+    _currentTime = DateTime.now();
     _updateDateTime();
+    
+    // Set user information from auth service
+    _loadUserInfo();
     
     // Listen to tab changes
     _tabController.addListener(_onTabChanged);
@@ -48,8 +70,85 @@ class _HomeScreenState extends State<HomeScreen>
       _checkedTasks[_getTaskKey(task.id, "today")] = task.isCompleted;
     }
     
-    // Fetch operational tasks from API when the screen loads
-    _fetchOperationalTasks();
+    // Start timer to update time remaining calculations
+    _startTimeUpdateTimer();
+    
+    // Fetch tasks based on user role when the screen loads
+    _fetchTasksBasedOnRole();
+  }
+  
+  void _loadUserInfo() {
+    final user = AuthService.currentUser;
+    final shift = AuthService.currentShift;
+    
+    if (user != null) {
+      setState(() {
+        _userName = user.name;
+        _userRole = user.role;
+        _departmentName = user.department.isEmpty ? "Department" : user.department;
+      });
+    }
+    
+    if (shift != null) {
+      setState(() {
+        // Use shift information from login response
+        final shiftName = shift['name'] as String? ?? "Shift";
+        final shortName = shift['shortName'] as String? ?? "";
+        _shiftName = "$shiftName ${shortName.isNotEmpty ? '- $shortName' : ''}";
+        
+        // Store shift timing for time remaining calculations
+        _shiftStartTime = shift['start_time'] as String?;
+        _shiftEndTime = shift['end_time'] as String?;
+        
+        // Format shift timing for display
+        if (_shiftStartTime != null && _shiftEndTime != null) {
+          _shiftTimingDisplay = TaskTimeUtils.getShiftTimingDisplay(
+            _shiftStartTime!,
+            _shiftEndTime!
+          );
+        }
+      });
+    }
+  }
+  
+  // Start timer to update time remaining periodically
+  void _startTimeUpdateTimer() {
+    // Cancel existing timer if it exists
+    _timeUpdateTimer?.cancel();
+    
+    // Update time every minute
+    _timeUpdateTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      setState(() {
+        _currentTime = DateTime.now();
+        _updateDateTime();
+        // Update time remaining for all tasks
+        _updateTaskTimesRemaining();
+      });
+    });
+  }
+  
+  // Update time remaining for all tasks based on current time
+  void _updateTaskTimesRemaining() {
+    if (_shiftEndTime == null) return;
+    
+    // Clear the map first
+    _taskTimeRemaining.clear();
+    
+    // Calculate time remaining for today's tasks
+    for (var task in _todayOperationalTasks) {
+      final key = _getTaskKey(task.id, 'today');
+      _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
+        _currentTime, 
+        _shiftEndTime!
+      );
+    }
+    
+    // For tomorrow's tasks, we would typically calculate based on tomorrow's shift
+    // For now, we'll just set a generic "1 day left" for all tomorrow tasks
+    for (var task in _tomorrowOperationalTasks) {
+      final key = _getTaskKey(task.id, 'tomorrow');
+      _taskTimeRemaining[key] = "1 day left";
+    }
   }
   
   // Helper method to generate a unique key for each task
@@ -58,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
   
   void _updateDateTime() {
-    final now = DateTime.now();
+    final now = _currentTime;
     
     // Get the day with suffix (1st, 2nd, 3rd, etc.)
     final int day = now.day;
@@ -91,10 +190,90 @@ class _HomeScreenState extends State<HomeScreen>
   
   void _onTabChanged() {
     if (_tabController.index == 0 && _todayOperationalTasks.isEmpty && _tomorrowOperationalTasks.isEmpty) {
-      // Fetch operational tasks when operational tab is selected
-      _fetchOperationalTasks();
+      // Fetch tasks when operational tab is selected
+      _fetchTasksBasedOnRole();
     }
     setState(() {});
+  }
+  
+  // Fetch tasks based on user role
+  Future<void> _fetchTasksBasedOnRole() async {
+    // Check user role and call appropriate API
+    if (_userRole == UserRole.hod) {
+      await _fetchHODTasks();
+    } else {
+      await _fetchOperationalTasks();
+    }
+  }
+  
+  // Fetch HOD tasks from the API
+  Future<void> _fetchHODTasks() async {
+    setState(() {
+      _isLoading = true;
+      _isAnyOperationInProgress = true; // Set global loading state
+      _errorMessage = null;
+    });
+    
+    try {
+      final tasksMap = await TaskService.fetchHODTasks();
+      
+      List<Task> todayTasks = [];
+      List<Task> tomorrowTasks = [];
+      List<Task> completedTasks = [];
+      
+  // Process today's tasks - separate completed from due tasks
+      for (var task in tasksMap['today']!) {
+        final key = _getTaskKey(task.id, 'today');
+        _checkedTasks[key] = task.isCompleted;
+        
+        // Calculate time remaining for this task
+        if (_shiftEndTime != null) {
+          _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
+            _currentTime, 
+            _shiftEndTime!
+          );
+        }
+        
+        if (task.isCompleted) {
+          // Add to completed tasks list
+          completedTasks.add(task);
+        } else {
+          // Add to today's tasks list
+          todayTasks.add(task);
+        }
+      }
+      
+      // Process tomorrow's tasks - separate completed from due tasks
+      for (var task in tasksMap['tomorrow']!) {
+        final key = _getTaskKey(task.id, 'tomorrow');
+        _checkedTasks[key] = task.isCompleted;
+        
+        // Set "1 day left" for tomorrow's tasks
+        _taskTimeRemaining[key] = "1 day left";
+        
+        if (task.isCompleted) {
+          // Add to completed tasks list
+          completedTasks.add(task);
+        } else {
+          // Add to tomorrow's tasks list
+          tomorrowTasks.add(task);
+        }
+      }
+      
+      setState(() {
+        _todayOperationalTasks = todayTasks;
+        _tomorrowOperationalTasks = tomorrowTasks;
+        _completedOperationalTasks = completedTasks; // Store completed tasks separately
+        _isLoading = false;
+        _isAnyOperationInProgress = false; // Clear global loading state
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load HOD tasks: $e';
+        _isLoading = false;
+        _isAnyOperationInProgress = false; // Clear global loading state
+      });
+    }
   }
   
   // Fetch operational tasks from the API
@@ -243,6 +422,7 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
+    _timeUpdateTimer?.cancel();
     super.dispose();
   }
 
@@ -276,19 +456,32 @@ class _HomeScreenState extends State<HomeScreen>
             else
               SizedBox(height: 4.0), // Placeholder to maintain layout consistency
 
-            // Date Header
+              // Date Header
             Container(
               padding: const EdgeInsets.symmetric(vertical: 15),
               width: double.infinity,
               color: const Color(0xFFE7DEF6),
-              child: Center(
-                child: Text(
-                  _currentDateTime,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
+              child: Column(
+                children: [
+                  Text(
+                    _currentDateTime,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
+                    ),
                   ),
-                ),
+                  if (_shiftTimingDisplay.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        _shiftTimingDisplay,
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
 
@@ -508,23 +701,53 @@ class _HomeScreenState extends State<HomeScreen>
           // Menu Icon
           Icon(Icons.menu, size: isTablet ? 28.0 : 24.0),
 
-          // Page Title
-          Text(
-            'Rolling - Shift B',
-            style: TextStyle(
-              fontSize: isTablet ? 18.0 : 16.0,
-              fontWeight: FontWeight.bold,
-            ),
+          // Page Title with Department and Shift
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _departmentName,
+                style: TextStyle(
+                  fontSize: isTablet ? 18.0 : 16.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                _shiftName,
+                style: TextStyle(
+                  fontSize: isTablet ? 14.0 : 12.0,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
           ),
 
-          // Profile Icon
-          CircleAvatar(
-            backgroundColor: Colors.grey,
-            radius: isTablet ? 18.0 : 14.0,
-            child: Icon(
-              Icons.person,
-              size: isTablet ? 20.0 : 16.0,
-              color: Colors.white,
+          // Profile with User Name as tooltip and Role indicator
+          Tooltip(
+            message: "${_userName} (${AuthService.getRoleName(_userRole)})",
+            child: Badge(
+              isLabelVisible: _userRole != UserRole.shiftIncharge,
+              backgroundColor: _userRole == UserRole.hod 
+                  ? Colors.purple[700]
+                  : Colors.blue[700],
+              label: Text(
+                _userRole == UserRole.hod ? "HOD" : "PH",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                ),
+              ),
+              child: CircleAvatar(
+                backgroundColor: Colors.grey,
+                radius: isTablet ? 18.0 : 14.0,
+                child: Icon(
+                  Icons.person,
+                  size: isTablet ? 20.0 : 16.0,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],
@@ -599,6 +822,33 @@ class _HomeScreenState extends State<HomeScreen>
               child: Text(
                 _errorMessage!,
                 style: TextStyle(color: Colors.red),
+              ),
+            ),
+            
+          // Show HOD view-only mode info banner
+          if (_userRole == UserRole.hod)
+            Container(
+              margin: EdgeInsets.only(top: 16, bottom: 16),
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.visibility_outlined, color: Colors.grey[600], size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "HOD view mode: Tasks are read-only",
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             
@@ -735,8 +985,15 @@ class _HomeScreenState extends State<HomeScreen>
     final taskKey = _getTaskKey(task.id, section);
     final bool isChecked = _checkedTasks[taskKey] ?? false;
     final bool isUpdating = _updatingTasks.contains(taskKey);
-    final bool isTimeWarning = task.timeRemaining.contains('hour') ||
-        task.timeRemaining.contains('mins');
+    
+    // Get time remaining from the map or use task's default value
+    final String timeRemaining = _taskTimeRemaining[taskKey] ?? task.timeRemaining;
+    
+    // Check if time remaining is critical (less than 1 hour or minutes left)
+    final bool isTimeWarning = TaskTimeUtils.isTimeUrgent(timeRemaining);
+    
+    // Check if user is HOD (should not be able to change task status)
+    final bool isHOD = _userRole == UserRole.hod;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8), // Small gap between items
@@ -754,8 +1011,8 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             // Checkbox or Loading indicator
             GestureDetector(
-              onTap: isUpdating 
-                  ? null // Disable interaction while updating
+              onTap: isUpdating || isHOD
+                  ? null // Disable interaction while updating or for HOD users
                   : () async {
                       // Toggle the status and update the task
                       await _updateTaskCompletion(task, section, !isChecked);
@@ -768,6 +1025,14 @@ class _HomeScreenState extends State<HomeScreen>
                   color: Colors.white,
                   border: Border.all(color: Colors.grey[400]!),
                   borderRadius: BorderRadius.circular(4),
+                  // Add a light gray overlay for HOD to indicate it's disabled
+                  boxShadow: isHOD ? [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 1,
+                    )
+                  ] : null,
                 ),
                 child: isUpdating
                     ? SizedBox(
@@ -784,7 +1049,7 @@ class _HomeScreenState extends State<HomeScreen>
                     : isChecked
                         ? Icon(
                             Icons.check,
-                            color: Colors.grey[600],
+                            color: isHOD ? Colors.grey[400] : Colors.grey[600],
                             size: isTablet ? 20.0 : 16.0,
                           )
                         : null,
@@ -804,9 +1069,9 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   const SizedBox(height: 4),
-                  if (task.timeRemaining.isNotEmpty)
+                  if (timeRemaining.isNotEmpty)
                     Text(
-                      task.timeRemaining,
+                      timeRemaining,
                       style: TextStyle(
                         fontSize: isTablet ? 16.0 : 14.0,
                         color: isTimeWarning
@@ -912,41 +1177,70 @@ class _HomeScreenState extends State<HomeScreen>
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: groupedTasks.entries.map((entry) {
-        final category = entry.key;
-        final categoryTasks = entry.value;
-        
-        // Skip "COMPLETED" category (for dummy data)
-        if (category == 'COMPLETED') {
-          return Column(
-            children: categoryTasks.map((task) => _buildCompletedTaskItem(task)).toList(),
-          );
-        }
+      children: [
+        // If user is HOD, show a note about view-only mode
+        if (_userRole == UserRole.hod)
+          Container(
+            margin: EdgeInsets.only(bottom: 16),
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.grey[600], size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "HOD view mode: Tasks are read-only",
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+        ...groupedTasks.entries.map((entry) {
+          final category = entry.key;
+          final categoryTasks = entry.value;
+          
+          // Skip "COMPLETED" category (for dummy data)
+          if (category == 'COMPLETED') {
+            return Column(
+              children: categoryTasks.map((task) => _buildCompletedTaskItem(task)).toList(),
+            );
+          }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Category label (except for 'COMPLETED')
-            Padding(
-              padding: EdgeInsets.only(
-                top: ResponsiveUtils.isTablet(context) ? 16.0 : 12.0, 
-                bottom: 4
-              ),
-              child: Text(
-                category,
-                style: TextStyle(
-                  color: const Color(0xFFCAB3AC),
-                  fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
-                  fontWeight: FontWeight.w400,
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Category label (except for 'COMPLETED')
+              Padding(
+                padding: EdgeInsets.only(
+                  top: ResponsiveUtils.isTablet(context) ? 16.0 : 12.0, 
+                  bottom: 4
+                ),
+                child: Text(
+                  category,
+                  style: TextStyle(
+                    color: const Color(0xFFCAB3AC),
+                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
               ),
-            ),
-            
-            // Tasks in this category
-            ...categoryTasks.map((task) => _buildCompletedTaskItem(task)),
-          ],
-        );
-      }).toList(),
+              
+              // Tasks in this category
+              ...categoryTasks.map((task) => _buildCompletedTaskItem(task)),
+            ],
+          );
+        }).toList(),
+      ],
     );
   }
 
@@ -960,6 +1254,9 @@ class _HomeScreenState extends State<HomeScreen>
     
     final taskKey = _getTaskKey(task.id, section);
     final bool isUpdating = _updatingTasks.contains(taskKey);
+    
+    // Check if user is HOD (should not be able to change task status)
+    final bool isHOD = _userRole == UserRole.hod;
     
     return Container(
       decoration: BoxDecoration(
@@ -977,8 +1274,8 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             // Completed checkbox with ability to uncheck
             GestureDetector(
-              onTap: isUpdating
-                  ? null // Disable interaction while updating
+              onTap: isUpdating || isHOD
+                  ? null // Disable interaction while updating or for HOD users
                   : () async {
                       // Mark as incomplete and move back to due tasks
                       await _updateTaskCompletion(task, section, false);
@@ -988,8 +1285,16 @@ class _HomeScreenState extends State<HomeScreen>
                 height: isTablet ? 24.0 : 20.0,
                 width: isTablet ? 24.0 : 20.0,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: isHOD ? Colors.grey[200] : Colors.grey[300], // Lighter color for HOD
                   borderRadius: BorderRadius.circular(4),
+                  // Add subtle opacity for HOD to indicate it's disabled
+                  boxShadow: isHOD ? [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 1,
+                    )
+                  ] : null,
                 ),
                 child: isUpdating
                     ? SizedBox(
