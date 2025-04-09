@@ -217,4 +217,86 @@ static Future<Map<String, List<Task>>> fetchOperationalTasks() async {
       return false;
     }
   }
+
+  // Add this method to lib/services/task_service.dart
+
+// Method to fetch maintenance tasks for Shift Incharge
+static Future<Map<String, List<Task>>> fetchMaintenanceTasks() async {
+  try {
+    final url = Uri.parse('$_baseUrl/shift-incharge-maintenance-tasks');
+    
+    // Get the auth token from AuthService
+    final authToken = AuthService.authToken;
+    if (authToken == null) {
+      throw Exception('Not authenticated');
+    }
+    
+    // Make the GET request with the auth token
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $authToken',
+        'Content-Type': 'application/json',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = json.decode(response.body);
+      
+      if (responseData['status'] == true) {
+        final Map<String, List<Task>> result = {
+          'today': [],
+          'tomorrow': []
+        };
+        
+        // Parse today's tasks
+        if (responseData.containsKey('tasks') && responseData['tasks'].containsKey('today')) {
+          final List<dynamic> todayTasksJson = responseData['tasks']['today'];
+          result['today'] = todayTasksJson.map((taskJson) {
+            return Task(
+              id: taskJson['task_id'].toString(),
+              name: taskJson['activity_name'],
+              category: "Today's Preventive/Planned Maintenance",  // Group tasks under this category
+              timeRemaining: taskJson['frequency'] ?? '',
+              isCompleted: taskJson['completed'] == 1,
+              specificationRange: taskJson['Measurement'] ?? 'Visual',
+              isRange: false,
+              completedAt: taskJson['completed_at'],
+            );
+          }).toList();
+        }
+        
+        // Parse tomorrow's tasks
+        if (responseData.containsKey('tasks') && responseData['tasks'].containsKey('tomorrow')) {
+          final List<dynamic> tomorrowTasksJson = responseData['tasks']['tomorrow'];
+          result['tomorrow'] = tomorrowTasksJson.map((taskJson) {
+            return Task(
+              id: taskJson['task_id'].toString(),
+              name: taskJson['activity_name'],
+              category: "Next Day's Preventive/Planned Maintenance",  // Group tasks under this category
+              timeRemaining: "1 day left",  // Always show as "1 day left" for tomorrow's tasks
+              isCompleted: taskJson['completed'] == 1,
+              specificationRange: taskJson['Measurement'] ?? 'Visual',
+              isRange: false,
+              completedAt: taskJson['completed_at'],
+            );
+          }).toList();
+        }
+        
+        return result;
+      } else {
+        throw Exception(responseData['message'] ?? 'Failed to load maintenance tasks');
+      }
+    } else {
+      throw Exception('Failed to load maintenance tasks: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error fetching maintenance tasks: $e');
+    // Return empty lists in case of error
+    return {
+      'today': [],
+      'tomorrow': []
+    };
+  }
+}
 }
