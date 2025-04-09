@@ -481,120 +481,229 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
 // Updated _updateTaskCompletion method in home_screen.dart
+// Update the _updateTaskCompletion method to handle both range and non-range tasks
 Future<void> _updateTaskCompletion(Task task, String section, bool isCompleted, BuildContext context) async {
-    final taskKey = _getTaskKey(task.id, section);
+  final taskKey = _getTaskKey(task.id, section);
+  
+  // Only show dialogs when marking as complete (not when unchecking)
+  if (isCompleted && _userRole == UserRole.shiftIncharge) {
+    String? userInput;
     
-    // For Shift Incharge role: Check if task has is_range=1 and user is trying to complete it
-    if (isCompleted && task.isRange && _userRole == UserRole.shiftIncharge) {
-      // Show numeric input dialog and get the value
-      final numericValue = await _showNumericInputDialog(task,context);
-      
-      // If user cancelled or didn't enter a value, don't proceed with task completion
-      if (numericValue == null) {
-        return;
-      }
-      
-      // Continue with task completion, now with the numeric value
-      // In a real implementation, you'd pass this value to the API
+    if (task.isRange) {
+      // For range tasks, show numeric input dialog
+      userInput = await _showNumericInputDialog(task, context);
+    } else {
+      // For non-range tasks, show remarks input dialog
+      userInput = await _showRemarksDialog(task, context);
     }
     
-    // Start updating - show loaders
-    setState(() {
-      _updatingTasks.add(taskKey);
-      _isAnyOperationInProgress = true; // Set global loading state
-    });
+    // If user cancels, don't proceed
+    if (userInput == null) {
+      return;
+    }
     
-    try {
-      // Call the API to update the task status
-      final success = await TaskService.updateTaskStatus(task.id, isCompleted);
-      
-      if (success) {
-        setState(() {
-          _checkedTasks[taskKey] = isCompleted;
+    // If we reached here, user entered a value and clicked Submit
+    // Continue with task completion
+  }
+  
+  // Start updating - show loaders
+  setState(() {
+    _updatingTasks.add(taskKey);
+    _isAnyOperationInProgress = true; // Set global loading state
+  });
+  
+  try {
+    // Call the API to update the task status
+    final success = await TaskService.updateTaskStatus(task.id, isCompleted);
+    
+    if (success) {
+      setState(() {
+        _checkedTasks[taskKey] = isCompleted;
+        
+        // Handle task movement between due and completed tasks
+        if (isCompleted) {
+          // Remove from the due tasks list and add to completed tasks
+          if (section == 'today') {
+            _todayOperationalTasks.removeWhere((t) => t.id == task.id);
+            final completedTask = task.copyWith(isCompleted: true);
+            _completedOperationalTasks.add(completedTask);
+          } else if (section == 'tomorrow') {
+            _tomorrowOperationalTasks.removeWhere((t) => t.id == task.id);
+            final completedTask = task.copyWith(isCompleted: true);
+            _completedOperationalTasks.add(completedTask);
+          } else if (section == 'maintenance_today') {
+            _todayMaintenanceTasks.removeWhere((t) => t.id == task.id);
+            final completedTask = task.copyWith(isCompleted: true);
+            _completedMaintenanceTasks.add(completedTask);
+          } else if (section == 'maintenance_tomorrow') {
+            _tomorrowMaintenanceTasks.removeWhere((t) => t.id == task.id);
+            final completedTask = task.copyWith(isCompleted: true);
+            _completedMaintenanceTasks.add(completedTask);
+          }
           
-          // Handle task movement between due and completed tasks
-          if (isCompleted) {
-            // Remove from the due tasks list and add to completed tasks
-            if (section == 'today') {
-              _todayOperationalTasks.removeWhere((t) => t.id == task.id);
-              final completedTask = task.copyWith(isCompleted: true);
-              _completedOperationalTasks.add(completedTask);
-            } else if (section == 'tomorrow') {
-              _tomorrowOperationalTasks.removeWhere((t) => t.id == task.id);
-              final completedTask = task.copyWith(isCompleted: true);
-              _completedOperationalTasks.add(completedTask);
-            } else if (section == 'maintenance_today') {
-              _todayMaintenanceTasks.removeWhere((t) => t.id == task.id);
-              final completedTask = task.copyWith(isCompleted: true);
-              _completedMaintenanceTasks.add(completedTask);
+          // Show notification when task is checked
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Task "${task.name}" marked as completed'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        } else {
+          // Move task back to due tasks
+          final uncompletedTask = task.copyWith(isCompleted: false);
+          
+          if (section.startsWith('maintenance')) {
+            _completedMaintenanceTasks.removeWhere((t) => t.id == task.id);
+            
+            if (section == 'maintenance_today') {
+              _todayMaintenanceTasks.add(uncompletedTask);
             } else if (section == 'maintenance_tomorrow') {
-              _tomorrowMaintenanceTasks.removeWhere((t) => t.id == task.id);
-              final completedTask = task.copyWith(isCompleted: true);
-              _completedMaintenanceTasks.add(completedTask);
+              _tomorrowMaintenanceTasks.add(uncompletedTask);
             }
-            
-            // Show notification when task is checked
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Task "${task.name}" marked as completed'),
-                duration: const Duration(seconds: 2),
-              ),
-            );
           } else {
-            // Move task back to due tasks
-            final uncompletedTask = task.copyWith(isCompleted: false);
+            _completedOperationalTasks.removeWhere((t) => t.id == task.id);
             
-            if (section.startsWith('maintenance')) {
-              _completedMaintenanceTasks.removeWhere((t) => t.id == task.id);
-              
-              if (section == 'maintenance_today') {
-                _todayMaintenanceTasks.add(uncompletedTask);
-              } else if (section == 'maintenance_tomorrow') {
-                _tomorrowMaintenanceTasks.add(uncompletedTask);
-              }
-            } else {
-              _completedOperationalTasks.removeWhere((t) => t.id == task.id);
-              
-              if (section == 'today') {
-                _todayOperationalTasks.add(uncompletedTask);
-              } else if (section == 'tomorrow') {
-                _tomorrowOperationalTasks.add(uncompletedTask);
-              }
+            if (section == 'today') {
+              _todayOperationalTasks.add(uncompletedTask);
+            } else if (section == 'tomorrow') {
+              _tomorrowOperationalTasks.add(uncompletedTask);
             }
           }
-        });
-      } else {
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update task status. Please try again.'),
-            duration: const Duration(seconds: 2),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      // Show error message for exceptions
+        }
+      });
+    } else {
+      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error updating task: ${e.toString()}'),
+          content: Text('Failed to update task status. Please try again.'),
           duration: const Duration(seconds: 2),
           backgroundColor: Colors.red,
         ),
       );
-    } finally {
-      // Stop updating - hide loaders
-      if (mounted) {
-        setState(() {
-          _updatingTasks.remove(taskKey);
-          // Only clear global loading if no tasks are being updated
-          if (_updatingTasks.isEmpty) {
-            _isAnyOperationInProgress = false;
-          }
-        });
-      }
+    }
+  } catch (e) {
+    // Show error message for exceptions
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error updating task: ${e.toString()}'),
+        duration: const Duration(seconds: 2),
+        backgroundColor: Colors.red,
+      ),
+    );
+  } finally {
+    // Stop updating - hide loaders
+    if (mounted) {
+      setState(() {
+        _updatingTasks.remove(taskKey);
+        // Only clear global loading if no tasks are being updated
+        if (_updatingTasks.isEmpty) {
+          _isAnyOperationInProgress = false;
+        }
+      });
     }
   }
+}
+
+// New method for showing remarks dialog for non-range tasks
+Future<String?> _showRemarksDialog(Task task, BuildContext context) async {
+  final bool isTablet = ResponsiveUtils.isTablet(context);
+  
+  try {
+    // Show dialog and wait for result
+    final result = await showDialog<String?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        // Create controller inside the builder to keep it in the dialog's scope
+      final TextEditingController remarksController = TextEditingController();  
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(
+                'Add Remarks',
+                style: TextStyle(
+                  fontSize: isTablet ? 20.0 : 18.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.name,
+                      style: TextStyle(
+                        fontSize: isTablet ? 16.0 : 14.0,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: remarksController,
+                      decoration: InputDecoration(
+                        labelText: 'Enter Remarks',
+                        helperText: 'Add any notes or observations',
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                      maxLines: 3,
+                      autofocus: true,
+                      onSubmitted: (value) {
+                        if (value.isNotEmpty) {
+                          Navigator.of(dialogContext).pop(value);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop(null); // Cancel
+                  },
+                  child: Text(
+                    'CANCEL',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: isTablet ? 16.0 : 14.0,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    String value = remarksController.text;
+                    // Allow empty remarks if needed
+                    Navigator.of(dialogContext).pop(value);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                  ),
+                  child: Text(
+                    'SUBMIT',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isTablet ? 16.0 : 14.0,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+    
+    return result; // This will be null if canceled, or the remarks text if submitted
+  } catch (e) {
+    print('Error showing remarks dialog: $e');
+    return null;
+  }
+}
 
 // Add a new method to show the numeric input dialog
 Future<String?> _showNumericInputDialog(Task task, BuildContext context) async {
