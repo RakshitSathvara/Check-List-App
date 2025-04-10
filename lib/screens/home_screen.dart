@@ -8,6 +8,8 @@ import '../utils/responsive_utils.dart';
 import '../services/task_service.dart';
 import '../services/auth_service.dart';
 import '../utils/task_time_utils.dart';
+import '../widgets/line_selection_dialog.dart';
+import 'dart:math';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -26,6 +28,10 @@ class _HomeScreenState extends State<HomeScreen>
   late String _shiftTimingDisplay = "";
   late String _userName = "User";
   late UserRole _userRole = UserRole.shiftIncharge;
+
+  // Line selection variables
+  int _selectedLineNumber = 1; // Default to Line 1
+  String _selectedLineName = "Line 1"; // For display
 
   // Timer for updating time remaining
   Timer? _timeUpdateTimer;
@@ -83,8 +89,11 @@ class _HomeScreenState extends State<HomeScreen>
     // Start timer to update time remaining calculations
     _startTimeUpdateTimer();
 
-    // Fetch tasks based on user role when the screen loads
-    _fetchTasksBasedOnRole();
+    // Show line selection dialog after a short delay
+    // This allows the screen to render first
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showLineSelectionDialog();
+    });
   }
 
   void _loadUserInfo() {
@@ -239,6 +248,34 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() {});
   }
 
+  // Method to show the line selection dialog
+  Future<void> _showLineSelectionDialog() async {
+    if (mounted) {
+      await showDialog(
+        context: context,
+        barrierDismissible: false, // User must select a line
+        builder: (BuildContext dialogContext) {
+          return LineSelectionDialog(
+            initialLineNumber: _selectedLineNumber,
+            onLineSelected: (lineNumber) {
+              setState(() {
+                _selectedLineNumber = lineNumber;
+                _selectedLineName = "Line $lineNumber";
+              });
+              // Fetch tasks based on the selected line
+              _fetchTasksBasedOnRole();
+            },
+          );
+        },
+      );
+    }
+  }
+
+  // Method to trigger line selection change
+  void _changeLine() {
+    _showLineSelectionDialog();
+  }
+
   // Fetch tasks based on user role
   Future<void> _fetchTasksBasedOnRole() async {
     // Check user role and call appropriate API
@@ -318,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  // Fetch operational tasks from the API
+  // Fetch operational tasks from the API with line number
   Future<void> _fetchOperationalTasks() async {
     setState(() {
       _isLoading = true;
@@ -327,7 +364,9 @@ class _HomeScreenState extends State<HomeScreen>
     });
 
     try {
-      final tasksMap = await TaskService.fetchOperationalTasks();
+      // Pass the selected line number to the API call
+      final tasksMap = await TaskService.fetchOperationalTasks(
+          lineNumber: _selectedLineNumber);
 
       List<Task> todayTasks = [];
       List<Task> tomorrowTasks = [];
@@ -337,6 +376,12 @@ class _HomeScreenState extends State<HomeScreen>
       for (var task in tasksMap['today']!) {
         final key = _getTaskKey(task.id, 'today');
         _checkedTasks[key] = task.isCompleted;
+
+        // Calculate time remaining for this task
+        if (_shiftEndTime != null) {
+          _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
+              _currentTime, _shiftEndTime!);
+        }
 
         if (task.isCompleted) {
           // Add to completed tasks list
@@ -351,6 +396,9 @@ class _HomeScreenState extends State<HomeScreen>
       for (var task in tasksMap['tomorrow']!) {
         final key = _getTaskKey(task.id, 'tomorrow');
         _checkedTasks[key] = task.isCompleted;
+
+        // Set "1 day left" for tomorrow's tasks
+        _taskTimeRemaining[key] = "1 day left";
 
         if (task.isCompleted) {
           // Add to completed tasks list
@@ -378,10 +426,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  // Fetch maintenance tasks from the API
-  // Enhanced method with better error handling and debugging
-
-// Fetch maintenance tasks based on user role
+  // Fetch maintenance tasks with line number
   Future<void> _fetchMaintenanceTasks() async {
     setState(() {
       _isMaintenanceLoading = true;
@@ -390,7 +435,8 @@ class _HomeScreenState extends State<HomeScreen>
     });
 
     try {
-      print('Fetching maintenance tasks for user role: ${_userRole}');
+      print(
+          'Fetching maintenance tasks for user role: ${_userRole} and line: $_selectedLineNumber');
 
       // Call the appropriate API based on user role
       final Map<String, List<Task>> tasksMap;
@@ -398,8 +444,10 @@ class _HomeScreenState extends State<HomeScreen>
         print('Calling HOD Maintenance API');
         tasksMap = await TaskService.fetchHODMaintenanceTasks();
       } else {
-        print('Calling Shift Incharge Maintenance API');
-        tasksMap = await TaskService.fetchMaintenanceTasks();
+        print(
+            'Calling Shift Incharge Maintenance API for line: $_selectedLineNumber');
+        tasksMap = await TaskService.fetchMaintenanceTasks(
+            lineNumber: _selectedLineNumber);
       }
 
       print(
@@ -484,28 +532,18 @@ class _HomeScreenState extends State<HomeScreen>
       Task task, String section, bool isCompleted, BuildContext context) async {
     final taskKey = _getTaskKey(task.id, section);
 
-    // Only show dialogs when marking as complete (not when unchecking) and for shift incharge
-    if (isCompleted && _userRole == UserRole.shiftIncharge) {
-      String? userInput;
+    // For Shift Incharge role: Check if task has is_range=1 and user is trying to complete it
+    if (isCompleted && task.isRange && _userRole == UserRole.shiftIncharge) {
+      // Show numeric input dialog and get the value
+      final numericValue = await _showNumericInputDialog(task, context);
 
-      // Check if it's a maintenance task
-      bool isMaintenanceTask = section.startsWith('maintenance');
-
-      if (task.isRange) {
-        // For range tasks, show numeric input dialog
-        userInput = await _showNumericInputDialog(task, context);
-      } else {
-        // For non-range tasks, show remarks dialog
-        userInput = await _showRemarksDialog(task, context);
-      }
-
-      // If user cancels, don't proceed
-      if (userInput == null) {
+      // If user cancelled or didn't enter a value, don't proceed with task completion
+      if (numericValue == null) {
         return;
       }
 
-      // If we reached here, user entered a value and clicked Submit
-      // Continue with task completion
+      // Continue with task completion, now with the numeric value
+      // In a real implementation, you'd pass this value to the API
     }
 
     // Start updating - show loaders
@@ -515,18 +553,8 @@ class _HomeScreenState extends State<HomeScreen>
     });
 
     try {
-      // Determine if it's a maintenance task and call the appropriate API
-      bool isMaintenanceTask = section.startsWith('maintenance');
-      bool success;
-
-      if (isMaintenanceTask) {
-        // Call maintenance-specific API
-        success =
-            await TaskService.updateMaintenanceTaskStatus(task.id, isCompleted);
-      } else {
-        // Call regular task API
-        success = await TaskService.updateTaskStatus(task.id, isCompleted);
-      }
+      // Call the API to update the task status
+      final success = await TaskService.updateTaskStatus(task.id, isCompleted);
 
       if (success) {
         setState(() {
@@ -616,197 +644,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-// New method for showing remarks dialog for non-range tasks
-  Future<String?> _showRemarksDialog(Task task, BuildContext context) async {
-    final bool isTablet = ResponsiveUtils.isTablet(context);
-
-    try {
-      // Show dialog and wait for result
-      final result = await showDialog<String?>(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          // Create controller inside the builder to keep it in the dialog's scope
-          final TextEditingController remarksController =
-              TextEditingController();
-          return StatefulBuilder(builder: (context, setState) {
-            return AlertDialog(
-              title: Text(
-                'Add Remarks',
-                style: TextStyle(
-                  fontSize: isTablet ? 20.0 : 18.0,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.name,
-                      style: TextStyle(
-                        fontSize: isTablet ? 16.0 : 14.0,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: remarksController,
-                      decoration: InputDecoration(
-                        labelText: 'Enter Remarks',
-                        helperText: 'Add any notes or observations',
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                      ),
-                      maxLines: 3,
-                      autofocus: true,
-                      onSubmitted: (value) {
-                        if (value.isNotEmpty) {
-                          Navigator.of(dialogContext).pop(value);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop(null); // Cancel
-                  },
-                  child: Text(
-                    'CANCEL',
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: isTablet ? 16.0 : 14.0,
-                    ),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    String value = remarksController.text;
-                    // Allow empty remarks if needed
-                    Navigator.of(dialogContext).pop(value);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                  ),
-                  child: Text(
-                    'SUBMIT',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: isTablet ? 16.0 : 14.0,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          });
-        },
-      );
-
-      return result; // This will be null if canceled, or the remarks text if submitted
-    } catch (e) {
-      print('Error showing remarks dialog: $e');
-      return null;
-    }
-  }
-
-// Method to show Line Selection Dialog
-  void _showLineSelectionDialog() {
-    final bool isTablet = ResponsiveUtils.isTablet(context);
-    String selectedLine = 'Line-1'; // Default selection
-
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(builder: (context, setState) {
-          return AlertDialog(
-            title: Text(
-              'Select Line',
-              style: TextStyle(
-                fontSize: isTablet ? 20.0 : 18.0,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: selectedLine,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                  ),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      setState(() {
-                        selectedLine = newValue;
-                      });
-                    }
-                  },
-                  items: [
-                    'Line-1',
-                    'Line-2',
-                    'Line-3',
-                    'Line-4',
-                  ].map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop(); // Cancel
-                },
-                child: Text(
-                  'CANCEL',
-                  style: TextStyle(
-                    color: Colors.grey[700],
-                    fontSize: isTablet ? 16.0 : 14.0,
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  // You can use selectedLine value here for further processing if needed
-                  print('Selected Line: $selectedLine');
-                  Navigator.of(dialogContext).pop(); // Submit and close
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                ),
-                child: Text(
-                  'SUBMIT',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: isTablet ? 16.0 : 14.0,
-                  ),
-                ),
-              ),
-            ],
-          );
-        });
-      },
-    );
-  }
-
-// Add a new method to show the numeric input dialog
+  // Add a new method to show the numeric input dialog
   Future<String?> _showNumericInputDialog(
       Task task, BuildContext context) async {
     final bool isTablet = ResponsiveUtils.isTablet(context);
@@ -1216,11 +1054,9 @@ class _HomeScreenState extends State<HomeScreen>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Menu Icon
-          GestureDetector(
-              onTap: _showLineSelectionDialog,
-              child: Icon(Icons.menu, size: isTablet ? 28.0 : 24.0)),
+          Icon(Icons.menu, size: isTablet ? 28.0 : 24.0),
 
-          // Page Title with Department and Shift
+          // Page Title with Department, Shift, and Selected Line
           Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
@@ -1238,6 +1074,40 @@ class _HomeScreenState extends State<HomeScreen>
                 style: TextStyle(
                   fontSize: isTablet ? 14.0 : 12.0,
                   color: Colors.grey[600],
+                ),
+              ),
+              SizedBox(height: 2),
+              // Selected Line Indicator with Change Button
+              GestureDetector(
+                onTap: _changeLine, // Show line selection dialog on tap
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 4.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFE7DEF6),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _selectedLineName,
+                        style: TextStyle(
+                          fontSize: isTablet ? 14.0 : 12.0,
+                          color: Color(0xFF673AB7),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(
+                        Icons.swap_horiz,
+                        size: isTablet ? 16.0 : 14.0,
+                        color: Color(0xFF673AB7),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
