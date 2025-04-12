@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../models/dummy_data.dart';
 import '../models/task.dart';
 import '../models/user.dart';
@@ -1200,7 +1201,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Menu Icon
-          Icon(Icons.menu, size: isTablet ? 28.0 : 24.0),
+        
 
           // Page Title with Department, Shift, and Selected Line
           Column(
@@ -1259,34 +1260,117 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ],
           ),
 
-          // Profile with User Name as tooltip and Role indicator
-          Tooltip(
-            message: "${_userName} (${AuthService.getRoleName(_userRole)})",
-            child: Badge(
-              isLabelVisible: _userRole != UserRole.shiftIncharge,
-              backgroundColor: _userRole == UserRole.hod ? Colors.purple[700] : Colors.blue[700],
-              label: Text(
-                _userRole == UserRole.hod ? "HOD" : "PH",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                ),
-              ),
-              child: CircleAvatar(
-                backgroundColor: Colors.grey,
-                radius: isTablet ? 18.0 : 14.0,
-                child: Icon(
-                  Icons.person,
-                  size: isTablet ? 20.0 : 16.0,
-                  color: Colors.white,
-                ),
-              ),
+          // Logout Button
+          IconButton(
+            icon: Icon(
+              Icons.logout,
+              size: isTablet ? 24.0 : 20.0,
+              color: Colors.red[700],
             ),
+            onPressed: _showLogoutDialog,
           ),
         ],
       ),
     );
   }
+
+// Add this method to the _HomeScreenState class
+  // Updated _showLogoutDialog method with more reliable navigation
+void _showLogoutDialog() {
+  final bool isTablet = ResponsiveUtils.isTablet(context);
+  
+  showDialog(
+    context: context,
+    barrierDismissible: false, // User must tap a button to close dialog
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        title: Text(
+          'Logout Confirmation',
+          style: TextStyle(
+            fontSize: isTablet ? 20.0 : 18.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to logout?',
+          style: TextStyle(
+            fontSize: isTablet ? 16.0 : 14.0,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Close the dialog without logging out
+              Navigator.of(dialogContext).pop();
+            },
+            child: Text(
+              'CANCEL',
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: isTablet ? 16.0 : 14.0,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              print("Logout button pressed");
+              
+              // Perform logout first
+              AuthService.logout();
+              print("User logged out");
+              
+              // Close the dialog
+              Navigator.of(dialogContext).pop();
+              print("Dialog closed");
+              
+              // Navigate using the most reliable approach with GoRouter
+              Future.delayed(const Duration(milliseconds: 50), () {
+                try {
+                  print("Attempting navigation to login...");
+                  
+                  // Get the GoRouter instance explicitly
+                  final router = GoRouter.of(context);
+                  
+                  // Use the router to navigate
+                  router.go('/login');
+                  print("Navigation completed");
+                } catch (e) {
+                  print('Error navigating to login: $e');
+                  
+                  // Fallback to named route if explicit navigation fails
+                  try {
+                    context.goNamed('login');
+                    print("Named navigation completed");
+                  } catch (e) {
+                    print('Error with named navigation: $e');
+                    
+                    // Last resort: try using standard Navigator API
+                    try {
+                      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                      print("Standard navigation completed");
+                    } catch (e) {
+                      print('Error with standard navigation: $e');
+                    }
+                  }
+                }
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isTablet ? 16.0 : 14.0,
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   Widget _buildBottomNavButton({
     required String title,
