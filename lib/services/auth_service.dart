@@ -15,23 +15,23 @@ class AuthService {
   static Future<bool> login(String username, String password) async {
     try {
       final url = Uri.parse('$_baseUrl/login');
-      
+
       // Create a multipart request
       final request = http.MultipartRequest('POST', url);
-      
+
       // Add form fields
       request.fields['user_name'] = username;
       request.fields['password'] = password;
-      
+
       // Send the request
       final response = await request.send();
       final responseString = await response.stream.bytesToString();
       final responseData = json.decode(responseString);
-      
+
       if (response.statusCode == 200 && responseData['status'] == true) {
         // Save auth token
         _authToken = responseData['token'];
-        
+
         // Save user data
         final userData = responseData['user'];
         _currentUser = User(
@@ -43,10 +43,10 @@ class AuthService {
           department: userData['department'] ?? '',
           password: '',
         );
-        
+
         // Save current shift information
         _currentShift = responseData['current_shift'];
-        
+
         return true;
       } else {
         return false;
@@ -64,11 +64,12 @@ class AuthService {
   }
 
   static bool get isLoggedIn => _currentUser != null && _authToken != null;
-  
+
   static UserRole _mapStringToUserRole(String roleString) {
     // Map the role string from API to UserRole enum
     switch (roleString.toLowerCase()) {
       case 'ship incharge':
+        return UserRole.shiftIncharge;
       case 'shift incharge':
         return UserRole.shiftIncharge;
       case 'hod':
@@ -79,7 +80,7 @@ class AuthService {
         return UserRole.shiftIncharge; // Default fallback
     }
   }
-  
+
   static String getRoleName(UserRole role) {
     switch (role) {
       case UserRole.shiftIncharge:
@@ -90,14 +91,14 @@ class AuthService {
         return 'Plant Head';
     }
   }
-  
+
   // Helper method to get department name based on user role
   static String getDepartmentName() {
     if (_currentUser != null) {
       if (_currentUser!.department.isNotEmpty) {
         return _currentUser!.department;
       }
-      
+
       switch (_currentUser!.role) {
         case UserRole.hod:
           return 'Department';
@@ -109,13 +110,13 @@ class AuthService {
     }
     return 'Department';
   }
-  
+
   // Helper method to get shift information as a formatted string
   static String getShiftInfo() {
     if (_currentShift != null) {
       final name = _currentShift!['name'] as String? ?? 'Shift';
       final shortName = _currentShift!['shortName'] as String? ?? '';
-      
+
       return "$name ${shortName.isNotEmpty ? '- $shortName' : ''}";
     }
     return 'Shift';

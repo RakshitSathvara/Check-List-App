@@ -1,5 +1,7 @@
 // screens/login_screen.dart
+import 'package:check_list_app/models/user.dart';
 import 'package:check_list_app/services/auth_service.dart';
+import 'package:check_list_app/services/task_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../utils/responsive_utils.dart';
@@ -43,6 +45,13 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (success) {
+        // Check if the user role is ship incharge or shift incharge
+        final currentUser = AuthService.currentUser;
+        if (currentUser != null && currentUser.role == UserRole.shiftIncharge) {
+          // Send daily report for ship incharge or shift incharge roles
+          await TaskService.sendDailyReport();
+        }
+
         if (!mounted) return;
         // Using go_router instead of Navigator
         context.go('/home');
@@ -99,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ],
                               ),
                             ),
-                            
+
                             // Form side
                             Expanded(
                               flex: 1,
@@ -131,12 +140,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             children: [
                               // Logo and Company Name
                               _buildHeader(),
-                              
+
                               SizedBox(height: isTablet ? 80.0 : 60.0),
-                              
+
                               // Login Form
                               _buildLoginForm(),
-                              
+
                               const Spacer(),
                             ],
                           ),
@@ -152,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildHeader() {
     final bool isTablet = ResponsiveUtils.isTablet(context);
-    
+
     return Column(
       children: [
         // Vishakha Glass Logo from assets
@@ -178,12 +187,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildLoginForm() {
     final isTablet = ResponsiveUtils.isTablet(context);
     final isLandscape = ResponsiveUtils.isLandscape(context);
-    
+
     // Adjust form width based on device and orientation
-    final double formWidth = isTablet 
-        ? isLandscape ? 500.0 : 400.0 
+    final double formWidth = isTablet
+        ? isLandscape
+            ? 500.0
+            : 400.0
         : double.infinity;
-    
+
     return Container(
       constraints: BoxConstraints(maxWidth: formWidth),
       child: Form(
@@ -209,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              
+
             // Username Field
             TextFormField(
               controller: _usernameController,
@@ -232,9 +243,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 return null;
               },
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Password Field with Visibility Toggle
             TextFormField(
               controller: _passwordController,
@@ -273,9 +284,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 return null;
               },
             ),
-            
+
             SizedBox(height: isTablet ? 32.0 : 24.0),
-            
+
             // Login Button
             ElevatedButton(
               onPressed: _isLoading ? null : _login,
@@ -292,13 +303,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ? const CircularProgressIndicator(color: Colors.white)
                   : Text(
                       'Login',
-                      style: TextStyle(
-                        fontSize: isTablet ? 18.0 : 16.0,
-                        color: Colors.white
-                      ),
+                      style: TextStyle(fontSize: isTablet ? 18.0 : 16.0, color: Colors.white),
                     ),
             ),
-            
+
             const SizedBox(height: 16),
           ],
         ),

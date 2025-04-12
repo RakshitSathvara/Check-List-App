@@ -18,8 +18,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentIndex = 0; // 0 for Due Tasks, 1 for Completed Tasks
   late String _currentDateTime;
@@ -60,10 +59,10 @@ class _HomeScreenState extends State<HomeScreen>
   List<Task> _todayMaintenanceTasks = [];
   List<Task> _tomorrowMaintenanceTasks = [];
   List<Task> _completedMaintenanceTasks = []; // For completed maintenance tasks
-  bool _isMaintenanceLoading =
-      false; // Separate loading state for maintenance tasks
+  bool _isMaintenanceLoading = false; // Separate loading state for maintenance tasks
 
   final TextEditingController textController = TextEditingController();
+  final TextEditingController remarkController = TextEditingController();
 
   @override
   void initState() {
@@ -104,8 +103,7 @@ class _HomeScreenState extends State<HomeScreen>
       setState(() {
         _userName = user.name;
         _userRole = user.role;
-        _departmentName =
-            user.department.isEmpty ? "Department" : user.department;
+        _departmentName = user.department.isEmpty ? "Department" : user.department;
       });
     }
 
@@ -122,8 +120,7 @@ class _HomeScreenState extends State<HomeScreen>
 
         // Format shift timing for display
         if (_shiftStartTime != null && _shiftEndTime != null) {
-          _shiftTimingDisplay = TaskTimeUtils.getShiftTimingDisplay(
-              _shiftStartTime!, _shiftEndTime!);
+          _shiftTimingDisplay = TaskTimeUtils.getShiftTimingDisplay(_shiftStartTime!, _shiftEndTime!);
         }
       });
     }
@@ -155,8 +152,7 @@ class _HomeScreenState extends State<HomeScreen>
     // Calculate time remaining for today's tasks from API
     for (var task in _todayOperationalTasks) {
       final key = _getTaskKey(task.id, 'today');
-      _taskTimeRemaining[key] =
-          TaskTimeUtils.calculateTimeRemaining(_currentTime, _shiftEndTime!);
+      _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(_currentTime, _shiftEndTime!);
     }
 
     // For tomorrow's tasks from API, set "1 day left"
@@ -168,8 +164,7 @@ class _HomeScreenState extends State<HomeScreen>
     // Calculate time remaining for today's maintenance tasks
     for (var task in _todayMaintenanceTasks) {
       final key = _getTaskKey(task.id, 'maintenance_today');
-      _taskTimeRemaining[key] =
-          TaskTimeUtils.calculateTimeRemaining(_currentTime, _shiftEndTime!);
+      _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(_currentTime, _shiftEndTime!);
     }
 
     // For tomorrow's maintenance tasks, set "1 day left"
@@ -295,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen>
     });
 
     try {
-      final tasksMap = await TaskService.fetchHODTasks();
+      final tasksMap = await TaskService.fetchHODTasks(lineId: _selectedLineNumber);
 
       List<Task> todayTasks = [];
       List<Task> tomorrowTasks = [];
@@ -308,8 +303,7 @@ class _HomeScreenState extends State<HomeScreen>
 
         // Calculate time remaining for this task
         if (_shiftEndTime != null) {
-          _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
-              _currentTime, _shiftEndTime!);
+          _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(_currentTime, _shiftEndTime!);
         }
 
         if (task.isCompleted) {
@@ -341,8 +335,7 @@ class _HomeScreenState extends State<HomeScreen>
       setState(() {
         _todayOperationalTasks = todayTasks;
         _tomorrowOperationalTasks = tomorrowTasks;
-        _completedOperationalTasks =
-            completedTasks; // Store completed tasks separately
+        _completedOperationalTasks = completedTasks; // Store completed tasks separately
         _isLoading = false;
         _isAnyOperationInProgress = false; // Clear global loading state
       });
@@ -365,8 +358,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     try {
       // Pass the selected line number to the API call
-      final tasksMap = await TaskService.fetchOperationalTasks(
-          lineNumber: _selectedLineNumber);
+      final tasksMap = await TaskService.fetchOperationalTasks(lineNumber: _selectedLineNumber);
 
       List<Task> todayTasks = [];
       List<Task> tomorrowTasks = [];
@@ -379,8 +371,7 @@ class _HomeScreenState extends State<HomeScreen>
 
         // Calculate time remaining for this task
         if (_shiftEndTime != null) {
-          _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
-              _currentTime, _shiftEndTime!);
+          _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(_currentTime, _shiftEndTime!);
         }
 
         if (task.isCompleted) {
@@ -412,8 +403,7 @@ class _HomeScreenState extends State<HomeScreen>
       setState(() {
         _todayOperationalTasks = todayTasks;
         _tomorrowOperationalTasks = tomorrowTasks;
-        _completedOperationalTasks =
-            completedTasks; // Store completed tasks separately
+        _completedOperationalTasks = completedTasks; // Store completed tasks separately
         _isLoading = false;
         _isAnyOperationInProgress = false; // Clear global loading state
       });
@@ -435,19 +425,16 @@ class _HomeScreenState extends State<HomeScreen>
     });
 
     try {
-      print(
-          'Fetching maintenance tasks for user role: ${_userRole} and line: $_selectedLineNumber');
+      print('Fetching maintenance tasks for user role: ${_userRole} and line: $_selectedLineNumber');
 
       // Call the appropriate API based on user role
       final Map<String, List<Task>> tasksMap;
       if (_userRole == UserRole.hod) {
         print('Calling HOD Maintenance API');
-        tasksMap = await TaskService.fetchHODMaintenanceTasks();
+        tasksMap = await TaskService.fetchHODMaintenanceTasks(lineId: _selectedLineNumber);
       } else {
-        print(
-            'Calling Shift Incharge Maintenance API for line: $_selectedLineNumber');
-        tasksMap = await TaskService.fetchMaintenanceTasks(
-            lineNumber: _selectedLineNumber);
+        print('Calling Shift Incharge Maintenance API for line: $_selectedLineNumber');
+        tasksMap = await TaskService.fetchMaintenanceTasks(lineNumber: _selectedLineNumber);
       }
 
       print(
@@ -465,8 +452,7 @@ class _HomeScreenState extends State<HomeScreen>
 
           // Calculate time remaining for this task
           if (_shiftEndTime != null) {
-            _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(
-                _currentTime, _shiftEndTime!);
+            _taskTimeRemaining[key] = TaskTimeUtils.calculateTimeRemaining(_currentTime, _shiftEndTime!);
           }
 
           if (task.isCompleted) {
@@ -512,8 +498,7 @@ class _HomeScreenState extends State<HomeScreen>
       setState(() {
         _todayMaintenanceTasks = todayTasks;
         _tomorrowMaintenanceTasks = tomorrowTasks;
-        _completedMaintenanceTasks =
-            completedTasks; // Store completed tasks separately
+        _completedMaintenanceTasks = completedTasks; // Store completed tasks separately
         _isMaintenanceLoading = false;
         _isAnyOperationInProgress = false; // Clear global loading state
         print('State updated with maintenance tasks');
@@ -528,67 +513,153 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Future<void> _updateTaskCompletion(
-      Task task, String section, bool isCompleted, BuildContext context) async {
+  Future<void> _updateTaskCompletion(Task task, String section, bool isCompleted, BuildContext context) async {
     final taskKey = _getTaskKey(task.id, section);
 
-    // For Shift Incharge role: Check if task has is_range=1 and user is trying to complete it
-    if (isCompleted && task.isRange && _userRole == UserRole.shiftIncharge) {
-      // Show numeric input dialog and get the value
-      final numericValue = await _showNumericInputDialog(task, context);
+    // Only proceed with task completion dialog if the task is being marked as completed
+    if (isCompleted) {
+      String? value = '';
+      String? remark = '';
 
-      // If user cancelled or didn't enter a value, don't proceed with task completion
-      if (numericValue == null) {
-        return;
+      // For tasks with isRange=true, get a numeric value
+      if (task.isRange) {
+        value = await _showNumericInputDialog(task, context);
+
+        // If user cancelled or didn't enter a value, don't proceed with task completion
+        if (value == null) {
+          return;
+        }
+      } else {
+        // For tasks with isRange=false, get a remark
+        remark = await _showRemarkDialog(task, context);
+
+        // If user cancelled, don't proceed with task completion
+        if (remark == null) {
+          return;
+        }
       }
 
-      // Continue with task completion, now with the numeric value
-      // In a real implementation, you'd pass this value to the API
-    }
+      // Start updating - show loaders
+      setState(() {
+        _updatingTasks.add(taskKey);
+        _isAnyOperationInProgress = true; // Set global loading state
+      });
 
-    // Start updating - show loaders
-    setState(() {
-      _updatingTasks.add(taskKey);
-      _isAnyOperationInProgress = true; // Set global loading state
-    });
+      try {
+        // Call the API to update the task status with the appropriate form data
+        final success = await TaskService.updateTaskStatus(
+          task.id,
+          isCompleted,
+          value: value,
+          remark: remark,
+          lineId: _selectedLineNumber,
+        );
 
-    try {
-      // Call the API to update the task status
-      final success = await TaskService.updateTaskStatus(task.id, isCompleted);
+        if (success) {
+          setState(() {
+            _checkedTasks[taskKey] = isCompleted;
 
-      if (success) {
-        setState(() {
-          _checkedTasks[taskKey] = isCompleted;
+            // Handle task movement between due and completed tasks
+            if (isCompleted) {
+              // Remove from the due tasks list and add to completed tasks
+              if (section == 'today') {
+                _todayOperationalTasks.removeWhere((t) => t.id == task.id);
+                final completedTask = task.copyWith(isCompleted: true);
+                _completedOperationalTasks.add(completedTask);
+              } else if (section == 'tomorrow') {
+                _tomorrowOperationalTasks.removeWhere((t) => t.id == task.id);
+                final completedTask = task.copyWith(isCompleted: true);
+                _completedOperationalTasks.add(completedTask);
+              } else if (section == 'maintenance_today') {
+                _todayMaintenanceTasks.removeWhere((t) => t.id == task.id);
+                final completedTask = task.copyWith(isCompleted: true);
+                _completedMaintenanceTasks.add(completedTask);
+              } else if (section == 'maintenance_tomorrow') {
+                _tomorrowMaintenanceTasks.removeWhere((t) => t.id == task.id);
+                final completedTask = task.copyWith(isCompleted: true);
+                _completedMaintenanceTasks.add(completedTask);
+              }
 
-          // Handle task movement between due and completed tasks
-          if (isCompleted) {
-            // Remove from the due tasks list and add to completed tasks
-            if (section == 'today') {
-              _todayOperationalTasks.removeWhere((t) => t.id == task.id);
-              final completedTask = task.copyWith(isCompleted: true);
-              _completedOperationalTasks.add(completedTask);
-            } else if (section == 'tomorrow') {
-              _tomorrowOperationalTasks.removeWhere((t) => t.id == task.id);
-              final completedTask = task.copyWith(isCompleted: true);
-              _completedOperationalTasks.add(completedTask);
-            } else if (section == 'maintenance_today') {
-              _todayMaintenanceTasks.removeWhere((t) => t.id == task.id);
-              final completedTask = task.copyWith(isCompleted: true);
-              _completedMaintenanceTasks.add(completedTask);
-            } else if (section == 'maintenance_tomorrow') {
-              _tomorrowMaintenanceTasks.removeWhere((t) => t.id == task.id);
-              final completedTask = task.copyWith(isCompleted: true);
-              _completedMaintenanceTasks.add(completedTask);
+              // Show notification when task is checked
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Task "${task.name}" marked as completed'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            } else {
+              // Move task back to due tasks
+              final uncompletedTask = task.copyWith(isCompleted: false);
+
+              if (section.startsWith('maintenance')) {
+                _completedMaintenanceTasks.removeWhere((t) => t.id == task.id);
+
+                if (section == 'maintenance_today') {
+                  _todayMaintenanceTasks.add(uncompletedTask);
+                } else if (section == 'maintenance_tomorrow') {
+                  _tomorrowMaintenanceTasks.add(uncompletedTask);
+                }
+              } else {
+                _completedOperationalTasks.removeWhere((t) => t.id == task.id);
+
+                if (section == 'today') {
+                  _todayOperationalTasks.add(uncompletedTask);
+                } else if (section == 'tomorrow') {
+                  _tomorrowOperationalTasks.add(uncompletedTask);
+                }
+              }
             }
+          });
+        } else {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update task status. Please try again.'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        // Show error message for exceptions
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating task: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        // Stop updating - hide loaders
+        if (mounted) {
+          setState(() {
+            _updatingTasks.remove(taskKey);
+            // Only clear global loading if no tasks are being updated
+            if (_updatingTasks.isEmpty) {
+              _isAnyOperationInProgress = false;
+            }
+          });
+        }
+      }
+    } else {
+      // Handle marking task as incomplete (this path remains largely unchanged)
+      setState(() {
+        _updatingTasks.add(taskKey);
+        _isAnyOperationInProgress = true; // Set global loading state
+      });
 
-            // Show notification when task is checked
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Task "${task.name}" marked as completed'),
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          } else {
+      try {
+        // Call the API to update the task status
+        final success = await TaskService.updateTaskStatus(
+          task.id,
+          isCompleted,
+          lineId: _selectedLineNumber,
+        );
+
+        if (success) {
+          setState(() {
+            _checkedTasks[taskKey] = isCompleted;
+
             // Move task back to due tasks
             final uncompletedTask = task.copyWith(isCompleted: false);
 
@@ -609,44 +680,129 @@ class _HomeScreenState extends State<HomeScreen>
                 _tomorrowOperationalTasks.add(uncompletedTask);
               }
             }
-          }
-        });
-      } else {
-        // Show error message
+          });
+        } else {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update task status. Please try again.'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        // Show error message for exceptions
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update task status. Please try again.'),
+            content: Text('Error updating task: ${e.toString()}'),
             duration: const Duration(seconds: 2),
             backgroundColor: Colors.red,
           ),
         );
-      }
-    } catch (e) {
-      // Show error message for exceptions
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error updating task: ${e.toString()}'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      // Stop updating - hide loaders
-      if (mounted) {
-        setState(() {
-          _updatingTasks.remove(taskKey);
-          // Only clear global loading if no tasks are being updated
-          if (_updatingTasks.isEmpty) {
-            _isAnyOperationInProgress = false;
-          }
-        });
+      } finally {
+        // Stop updating - hide loaders
+        if (mounted) {
+          setState(() {
+            _updatingTasks.remove(taskKey);
+            // Only clear global loading if no tasks are being updated
+            if (_updatingTasks.isEmpty) {
+              _isAnyOperationInProgress = false;
+            }
+          });
+        }
       }
     }
   }
 
+  // Add this method to the _HomeScreenState class
+  Future<String?> _showRemarkDialog(Task task, BuildContext context) async {
+    final bool isTablet = ResponsiveUtils.isTablet(context);
+    try {
+      final result = await showDialog<String?>(
+        context: context,
+        barrierDismissible: false, // User must tap submit to close the dialog
+        builder: (BuildContext dialogContext) {
+          return WillPopScope(
+            onWillPop: () async => false, // Prevent dialog closure on back press
+            child: AlertDialog(
+              title: Text(
+                'Add Remark',
+                style: TextStyle(
+                  fontSize: isTablet ? 20.0 : 18.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    task.name,
+                    style: TextStyle(
+                      fontSize: isTablet ? 16.0 : 14.0,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  TextField(
+                    controller: remarkController,
+                    decoration: InputDecoration(
+                      labelText: 'Remark',
+                      helperText: 'Enter any remarks about task completion',
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                    maxLines: 3,
+                    autofocus: true,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(null); // Return null for cancel
+                  },
+                  child: Text(
+                    'CANCEL',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: isTablet ? 16.0 : 14.0,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final value = remarkController.text;
+                    Navigator.of(dialogContext).pop(value); // Return the input value
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                  ),
+                  child: Text(
+                    'SUBMIT',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isTablet ? 16.0 : 14.0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      return result; // This will be the remark text
+    } finally {
+      // Handle any exceptions that occur during dialog display
+    }
+  }
+
   // Add a new method to show the numeric input dialog
-  Future<String?> _showNumericInputDialog(
-      Task task, BuildContext context) async {
+  Future<String?> _showNumericInputDialog(Task task, BuildContext context) async {
     final bool isTablet = ResponsiveUtils.isTablet(context);
     // Extract min and max values from specification range if available
     String rangeText = task.specificationRange;
@@ -699,8 +855,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 TextField(
                   controller: textController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
                     labelText: 'Measured Value',
                     helperText: helperText,
@@ -798,13 +953,11 @@ class _HomeScreenState extends State<HomeScreen>
                 color: Colors.transparent,
                 child: LinearProgressIndicator(
                   backgroundColor: Colors.grey[200],
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(Colors.purple[300]!),
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.purple[300]!),
                 ),
               )
             else
-              SizedBox(
-                  height: 4.0), // Placeholder to maintain layout consistency
+              SizedBox(height: 4.0), // Placeholder to maintain layout consistency
 
             // Date Header
             Container(
@@ -827,8 +980,7 @@ class _HomeScreenState extends State<HomeScreen>
                         _shiftTimingDisplay,
                         style: TextStyle(
                           color: Colors.grey[700],
-                          fontSize:
-                              ResponsiveUtils.getScaledFontSize(context, 12),
+                          fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
                         ),
                       ),
                     ),
@@ -872,8 +1024,7 @@ class _HomeScreenState extends State<HomeScreen>
                           if (_tabController.index == 0)
                             Padding(
                               padding: const EdgeInsets.only(right: 4.0),
-                              child:
-                                  Icon(Icons.check, size: isTablet ? 20 : 16),
+                              child: Icon(Icons.check, size: isTablet ? 20 : 16),
                             ),
                           const Text('Operational'),
                         ],
@@ -887,8 +1038,7 @@ class _HomeScreenState extends State<HomeScreen>
                           if (_tabController.index == 1)
                             Padding(
                               padding: const EdgeInsets.only(right: 4.0),
-                              child:
-                                  Icon(Icons.check, size: isTablet ? 20 : 16),
+                              child: Icon(Icons.check, size: isTablet ? 20 : 16),
                             ),
                           const Text('Maintenance'),
                         ],
@@ -917,8 +1067,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 child: Text(
                                   'Due Tasks',
                                   style: TextStyle(
-                                    fontSize: ResponsiveUtils.getScaledFontSize(
-                                        context, 16),
+                                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
                                     fontWeight: FontWeight.bold,
                                     color: const Color(0xFF673AB7),
                                   ),
@@ -953,8 +1102,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 child: Text(
                                   'Completed Tasks',
                                   style: TextStyle(
-                                    fontSize: ResponsiveUtils.getScaledFontSize(
-                                        context, 16),
+                                    fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
                                     fontWeight: FontWeight.bold,
                                     color: Colors.grey[600],
                                   ),
@@ -983,9 +1131,7 @@ class _HomeScreenState extends State<HomeScreen>
                             : _buildOperationalCompletedTasksView(),
 
                         // Maintenance Tab
-                        _currentIndex == 0
-                            ? _buildMaintenanceDueTasksView()
-                            : _buildMaintenanceCompletedTasksView(),
+                        _currentIndex == 0 ? _buildMaintenanceDueTasksView() : _buildMaintenanceCompletedTasksView(),
                       ],
                     ),
             ),
@@ -1118,9 +1264,7 @@ class _HomeScreenState extends State<HomeScreen>
             message: "${_userName} (${AuthService.getRoleName(_userRole)})",
             child: Badge(
               isLabelVisible: _userRole != UserRole.shiftIncharge,
-              backgroundColor: _userRole == UserRole.hod
-                  ? Colors.purple[700]
-                  : Colors.blue[700],
+              backgroundColor: _userRole == UserRole.hod ? Colors.purple[700] : Colors.blue[700],
               label: Text(
                 _userRole == UserRole.hod ? "HOD" : "PH",
                 style: TextStyle(
@@ -1225,16 +1369,14 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               child: Row(
                 children: [
-                  Icon(Icons.visibility_outlined,
-                      color: Colors.grey[600], size: 16),
+                  Icon(Icons.visibility_outlined, color: Colors.grey[600], size: 16),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       "HOD view mode: Tasks are read-only",
                       style: TextStyle(
                         color: Colors.grey[600],
-                        fontSize:
-                            ResponsiveUtils.getScaledFontSize(context, 12),
+                        fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
                       ),
                     ),
                   ),
@@ -1278,8 +1420,7 @@ class _HomeScreenState extends State<HomeScreen>
                         "No tasks available for today",
                         style: TextStyle(
                           color: Colors.grey[600],
-                          fontSize:
-                              ResponsiveUtils.getScaledFontSize(context, 14),
+                          fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
                         ),
                       ),
                     ),
@@ -1324,8 +1465,7 @@ class _HomeScreenState extends State<HomeScreen>
                         "No tasks available for tomorrow",
                         style: TextStyle(
                           color: Colors.grey[600],
-                          fontSize:
-                              ResponsiveUtils.getScaledFontSize(context, 14),
+                          fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
                         ),
                       ),
                     ),
@@ -1378,14 +1518,11 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             // Category label (HMI, BLOWER, etc.)
             Padding(
-              padding: EdgeInsets.only(
-                  top: ResponsiveUtils.isTablet(context) ? 16.0 : 12.0,
-                  bottom: 4),
+              padding: EdgeInsets.only(top: ResponsiveUtils.isTablet(context) ? 16.0 : 12.0, bottom: 4),
               child: Text(
                 category,
                 style: TextStyle(
-                  color: const Color(
-                      0xFFCAB3AC), // Soft brownish color for category
+                  color: const Color(0xFFCAB3AC), // Soft brownish color for category
                   fontSize: ResponsiveUtils.getScaledFontSize(context, 16),
                   fontWeight: FontWeight.w400,
                 ),
@@ -1400,8 +1537,6 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // Due Task Item with section parameter and enhanced time remaining display for all roles
-  // Updated _buildDueTaskItem method in home_screen.dart
   Widget _buildDueTaskItem(Task task, String section) {
     final bool isTablet = ResponsiveUtils.isTablet(context);
     final taskKey = _getTaskKey(task.id, section);
@@ -1425,6 +1560,9 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Check if this is a tomorrow task (disable for all users)
     final bool isTomorrowTask = section.contains('tomorrow');
+
+    // Check if this is a maintenance task
+    final bool isMaintenanceTask = section.contains('maintenance');
 
     // Extract hours from timeRemaining if it contains "hours"
     String hoursValue = "";
@@ -1454,9 +1592,93 @@ class _HomeScreenState extends State<HomeScreen>
               onTap: isUpdating || isHOD || isTomorrowTask
                   ? null // Disable interaction while updating, for HOD users, or for tomorrow tasks
                   : () async {
-                      // Toggle the status and update the task
-                      await _updateTaskCompletion(
-                          task, section, !isChecked, context);
+                      // For maintenance tasks, always show remarks dialog
+                      if (isMaintenanceTask) {
+                        // Get remarks for maintenance task
+                        final remarks = await _showRemarkDialog(task, context);
+
+                        // If user cancelled, don't proceed
+                        if (remarks == null) {
+                          return;
+                        }
+
+                        // Show loaders
+                        setState(() {
+                          _updatingTasks.add(taskKey);
+                          _isAnyOperationInProgress = true;
+                        });
+
+                        try {
+                          // Call maintenance-specific API with remarks
+                          final success = await TaskService.updateMaintenanceTaskStatus(
+                            task.id,
+                            !isChecked,
+                            remarks: remarks,
+                            lineId: _selectedLineNumber,
+                          );
+
+                          if (success) {
+                            setState(() {
+                              remarkController.clear();
+                              textController.clear();
+                              _checkedTasks[taskKey] = !isChecked;
+
+                              // Handle task movement between due and completed tasks
+                              if (!isChecked) {
+                                // Task is being completed
+                                if (section == 'maintenance_today') {
+                                  _todayMaintenanceTasks.removeWhere((t) => t.id == task.id);
+                                  final completedTask = task.copyWith(isCompleted: true);
+                                  _completedMaintenanceTasks.add(completedTask);
+                                } else if (section == 'maintenance_tomorrow') {
+                                  _tomorrowMaintenanceTasks.removeWhere((t) => t.id == task.id);
+                                  final completedTask = task.copyWith(isCompleted: true);
+                                  _completedMaintenanceTasks.add(completedTask);
+                                }
+
+                                // Show success notification
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Maintenance task "${task.name}" marked as completed'),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            });
+                          } else {
+                            // Show error
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to update maintenance task status'),
+                                duration: const Duration(seconds: 2),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          // Show error
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error updating maintenance task: ${e.toString()}'),
+                              duration: const Duration(seconds: 2),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        } finally {
+                          // Hide loaders
+                          if (mounted) {
+                            setState(() {
+                              _updatingTasks.remove(taskKey);
+                              if (_updatingTasks.isEmpty) {
+                                _isAnyOperationInProgress = false;
+                              }
+                            });
+                          }
+                        }
+                      } else {
+                        // For non-maintenance tasks, use the original method
+                        await _updateTaskCompletion(task, section, !isChecked, context);
+                      }
                     },
               child: Container(
                 margin: const EdgeInsets.only(right: 12, top: 2),
@@ -1484,17 +1706,14 @@ class _HomeScreenState extends State<HomeScreen>
                         child: Center(
                           child: CircularProgressIndicator(
                             strokeWidth: 2.0,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.grey[400]!),
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[400]!),
                           ),
                         ),
                       )
                     : isChecked
                         ? Icon(
                             Icons.check,
-                            color: isHOD || isTomorrowTask
-                                ? Colors.grey[400]
-                                : Colors.grey[600],
+                            color: isHOD || isTomorrowTask ? Colors.grey[400] : Colors.grey[600],
                             size: isTablet ? 20.0 : 16.0,
                           )
                         : null,
@@ -1519,11 +1738,8 @@ class _HomeScreenState extends State<HomeScreen>
                     timeRemaining,
                     style: TextStyle(
                       fontSize: isTablet ? 16.0 : 14.0,
-                      color: isTimeWarning
-                          ? const Color(0xFFE53935)
-                          : Colors.grey[600],
-                      fontWeight:
-                          isTimeWarning ? FontWeight.bold : FontWeight.normal,
+                      color: isTimeWarning ? const Color(0xFFE53935) : Colors.grey[600],
+                      fontWeight: isTimeWarning ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
 
@@ -1584,8 +1800,7 @@ class _HomeScreenState extends State<HomeScreen>
           if (!_isLoading) ...[
             // Header for completed tasks
             Padding(
-              padding: EdgeInsets.only(
-                  top: isTablet ? 16.0 : 8.0, bottom: isTablet ? 16.0 : 8.0),
+              padding: EdgeInsets.only(top: isTablet ? 16.0 : 8.0, bottom: isTablet ? 16.0 : 8.0),
               child: Text(
                 "COMPLETED",
                 style: TextStyle(
@@ -1683,9 +1898,7 @@ class _HomeScreenState extends State<HomeScreen>
           // Skip "COMPLETED" category (for dummy data)
           if (category == 'COMPLETED') {
             return Column(
-              children: categoryTasks
-                  .map((task) => _buildCompletedTaskItem(task))
-                  .toList(),
+              children: categoryTasks.map((task) => _buildCompletedTaskItem(task)).toList(),
             );
           }
 
@@ -1694,9 +1907,7 @@ class _HomeScreenState extends State<HomeScreen>
             children: [
               // Category label (except for 'COMPLETED')
               Padding(
-                padding: EdgeInsets.only(
-                    top: ResponsiveUtils.isTablet(context) ? 16.0 : 12.0,
-                    bottom: 4),
+                padding: EdgeInsets.only(top: ResponsiveUtils.isTablet(context) ? 16.0 : 12.0, bottom: 4),
                 child: Text(
                   category,
                   style: TextStyle(
@@ -1716,22 +1927,24 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // Completed Task Item
+  // Updated completed task item method
   Widget _buildCompletedTaskItem(Task task) {
     final bool isTablet = ResponsiveUtils.isTablet(context);
 
     // Determine which section this task belongs to (today/tomorrow)
     final String section = task.id.length > 2
         ? 'completed'
-        : (_todayOperationalTasks.any((t) => t.category == task.category)
-            ? 'today'
-            : 'tomorrow');
+        : (_todayOperationalTasks.any((t) => t.category == task.category) ? 'today' : 'tomorrow');
+
+    // Check if this is a maintenance task
+    final bool isMaintenanceTask = task.category.contains('Preventive/Planned') || section.contains('maintenance');
 
     final taskKey = _getTaskKey(task.id, section);
     final bool isUpdating = _updatingTasks.contains(taskKey);
 
-    // Disable for all users - not just HODs
-    final bool isDisabled = true;
+    // Check if user is HOD - HODs cannot change task status
+    final bool isHOD = _userRole == UserRole.hod;
+    final bool isDisabled = isHOD;
 
     return Container(
       decoration: BoxDecoration(
@@ -1747,40 +1960,55 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         child: Row(
           children: [
-            // Completed checkbox - disabled for all users
-            Container(
-              margin: const EdgeInsets.only(right: 12),
-              height: isTablet ? 24.0 : 20.0,
-              width: isTablet ? 24.0 : 20.0,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(4),
-                // Add subtle opacity to indicate it's disabled
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 1,
-                  )
-                ],
-              ),
-              child: isUpdating
-                  ? SizedBox(
-                      height: isTablet ? 18.0 : 14.0,
-                      width: isTablet ? 18.0 : 14.0,
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.0,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
+            // Completed checkbox
+            GestureDetector(
+              onTap: isDisabled || isUpdating
+                  ? null
+                  : () async {
+                      // Handle marking tasks as incomplete
+                      if (isMaintenanceTask) {
+                        // Use maintenance-specific method
+                        await _markMaintenanceTaskIncomplete(task, section);
+                      } else {
+                        // Use standard method for operational tasks
+                        await _updateTaskCompletion(task, section, false, context);
+                      }
+                    },
+              child: Container(
+                margin: const EdgeInsets.only(right: 12),
+                height: isTablet ? 24.0 : 20.0,
+                width: isTablet ? 24.0 : 20.0,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(4),
+                  // Add subtle opacity to indicate it's disabled for HODs
+                  boxShadow: isDisabled
+                      ? [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            spreadRadius: 1,
+                            blurRadius: 1,
+                          )
+                        ]
+                      : null,
+                ),
+                child: isUpdating
+                    ? SizedBox(
+                        height: isTablet ? 18.0 : 14.0,
+                        width: isTablet ? 18.0 : 14.0,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.0,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
                         ),
+                      )
+                    : Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: isTablet ? 20.0 : 16.0,
                       ),
-                    )
-                  : Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: isTablet ? 20.0 : 16.0,
-                    ),
+              ),
             ),
 
             // Task name and specification
@@ -1802,8 +2030,7 @@ class _HomeScreenState extends State<HomeScreen>
                       child: Text(
                         'Spec: ${task.specificationRange}',
                         style: TextStyle(
-                          fontSize:
-                              ResponsiveUtils.getScaledFontSize(context, 11),
+                          fontSize: ResponsiveUtils.getScaledFontSize(context, 11),
                           color: Colors.grey[600],
                           fontStyle: FontStyle.italic,
                         ),
@@ -1858,16 +2085,14 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               child: Row(
                 children: [
-                  Icon(Icons.visibility_outlined,
-                      color: Colors.grey[600], size: 16),
+                  Icon(Icons.visibility_outlined, color: Colors.grey[600], size: 16),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       "HOD view mode: Tasks are read-only",
                       style: TextStyle(
                         color: Colors.grey[600],
-                        fontSize:
-                            ResponsiveUtils.getScaledFontSize(context, 12),
+                        fontSize: ResponsiveUtils.getScaledFontSize(context, 12),
                       ),
                     ),
                   ),
@@ -1911,14 +2136,12 @@ class _HomeScreenState extends State<HomeScreen>
                         "No maintenance tasks available for today",
                         style: TextStyle(
                           color: Colors.grey[600],
-                          fontSize:
-                              ResponsiveUtils.getScaledFontSize(context, 14),
+                          fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
                         ),
                       ),
                     ),
                   )
-                : _buildTasksSection(
-                    _todayMaintenanceTasks, "maintenance_today"),
+                : _buildTasksSection(_todayMaintenanceTasks, "maintenance_today"),
 
             // TOMORROW SECTION
             Padding(
@@ -1955,14 +2178,12 @@ class _HomeScreenState extends State<HomeScreen>
                         "No maintenance tasks available for tomorrow",
                         style: TextStyle(
                           color: Colors.grey[600],
-                          fontSize:
-                              ResponsiveUtils.getScaledFontSize(context, 14),
+                          fontSize: ResponsiveUtils.getScaledFontSize(context, 14),
                         ),
                       ),
                     ),
                   )
-                : _buildTasksSection(
-                    _tomorrowMaintenanceTasks, "maintenance_tomorrow"),
+                : _buildTasksSection(_tomorrowMaintenanceTasks, "maintenance_tomorrow"),
           ],
 
           // Add some padding at the bottom
@@ -1992,8 +2213,7 @@ class _HomeScreenState extends State<HomeScreen>
 
           if (!_isMaintenanceLoading) ...[
             Padding(
-              padding: EdgeInsets.only(
-                  top: isTablet ? 16.0 : 8.0, bottom: isTablet ? 16.0 : 8.0),
+              padding: EdgeInsets.only(top: isTablet ? 16.0 : 8.0, bottom: isTablet ? 16.0 : 8.0),
               child: Text(
                 "COMPLETED",
                 style: TextStyle(
@@ -2034,5 +2254,74 @@ class _HomeScreenState extends State<HomeScreen>
     )..layout(minWidth: 0, maxWidth: double.infinity);
 
     return textPainter.width;
+  }
+
+  // Add this method to the HomeScreen class
+
+  Future<void> _markMaintenanceTaskIncomplete(Task task, String section) async {
+    final taskKey = _getTaskKey(task.id, section);
+
+    // Start updating - show loaders
+    setState(() {
+      _updatingTasks.add(taskKey);
+      _isAnyOperationInProgress = true;
+    });
+
+    try {
+      // Call the API to update the task status
+      final success = await TaskService.updateMaintenanceTaskStatus(
+        task.id,
+        false, // Mark as incomplete
+        lineId: _selectedLineNumber,
+      );
+
+      if (success) {
+        setState(() {
+          remarkController.clear();
+          textController.clear();
+          // Update the local state
+          _checkedTasks[taskKey] = false;
+
+          // Move task back to due tasks from completed
+          final uncompletedTask = task.copyWith(isCompleted: false);
+          _completedMaintenanceTasks.removeWhere((t) => t.id == task.id);
+
+          if (section == 'maintenance_today' || section.contains('today')) {
+            _todayMaintenanceTasks.add(uncompletedTask);
+          } else if (section == 'maintenance_tomorrow' || section.contains('tomorrow')) {
+            _tomorrowMaintenanceTasks.add(uncompletedTask);
+          }
+        });
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update maintenance task status. Please try again.'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error message for exceptions
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating maintenance task: ${e.toString()}'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      // Stop updating - hide loaders
+      if (mounted) {
+        setState(() {
+          _updatingTasks.remove(taskKey);
+          // Only clear global loading if no tasks are being updated
+          if (_updatingTasks.isEmpty) {
+            _isAnyOperationInProgress = false;
+          }
+        });
+      }
+    }
   }
 }
