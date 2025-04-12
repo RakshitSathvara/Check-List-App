@@ -16,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _isPasswordVisible = false; // Added for password visibility toggle
   String? _errorMessage;
 
   @override
@@ -234,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
             
             const SizedBox(height: 16),
             
-            // Password Field
+            // Password Field with Visibility Toggle
             TextFormField(
               controller: _passwordController,
               decoration: InputDecoration(
@@ -243,13 +244,28 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 prefixIcon: const Icon(Icons.lock),
+                // Adding suffix icon for password visibility toggle
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    // Change the icon based on the password visibility state
+                    _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                    color: Colors.grey,
+                  ),
+                  onPressed: () {
+                    // Toggle password visibility state
+                    setState(() {
+                      _isPasswordVisible = !_isPasswordVisible;
+                    });
+                  },
+                ),
                 contentPadding: EdgeInsets.symmetric(
                   vertical: isTablet ? 16.0 : 12.0,
                   horizontal: 16.0,
                 ),
               ),
               style: TextStyle(fontSize: isTablet ? 16.0 : 14.0),
-              obscureText: true,
+              // Use the _isPasswordVisible state to toggle password visibility
+              obscureText: !_isPasswordVisible,
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter your password';
